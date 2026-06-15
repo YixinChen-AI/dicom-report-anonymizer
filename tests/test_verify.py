@@ -23,6 +23,12 @@ def test_verify_text_regex_catches_idcard_phone():
     assert "手机号" in labels
 
 
+def test_verify_regex_no_false_positive_in_filename():
+    # 嵌在字母数字文件名/UID 里的数字段不应误报手机号
+    leaks = verify_text("<Imagefilename>93c13849794435d7.dcm</Imagefilename>", [])
+    assert leaks == []
+
+
 def test_verify_dicom_finds_planted_leak(tmp_path):
     p = make_dicom_file(tmp_path / "a.dcm", patient_name="Wan^XueZhong", patient_id="P13509")
     leaks = verify_dicom_file(p, ["Wan^XueZhong", "P13509"])

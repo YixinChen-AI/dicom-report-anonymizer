@@ -14,9 +14,10 @@ import pydicom
 IGNORE_NAMES = {"crosswalk.csv", "run_report.md", "run_report.html", "run_report.txt"}
 
 # 启发式残留 PHI 正则（即使未进 secrets 也能报警）：中国身份证 18 位、大陆手机 11 位。
+# 边界用「前后不能是字母或数字」：避免误匹配嵌在文件名/UID 等字母数字串里的数字段。
 PHI_REGEXES = [
-    ("身份证号", re.compile(r"(?<!\d)\d{17}[\dXx](?!\d)")),
-    ("手机号", re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)")),
+    ("身份证号", re.compile(r"(?<![0-9A-Za-z])\d{17}[\dXx](?![0-9A-Za-z])")),
+    ("手机号", re.compile(r"(?<![0-9A-Za-z])1[3-9]\d{9}(?![0-9A-Za-z])")),
 ]
 
 

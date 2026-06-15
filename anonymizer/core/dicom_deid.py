@@ -16,8 +16,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from secrets import token_hex
 
+import pydicom.config as _pdcfg
 from pydicom.multival import MultiValue
 from pydicom.uid import generate_uid
+
+# 临床 DICOM 常含脏私有标签（VR 未知、长度非法，如 Philips iDose 的 (01F1,xxxx)）。
+# 宽容解析：长度非法的值转 UN 原始字节而非抛异常（这些私有标签随后会被整体移除）。
+_pdcfg.convert_wrong_length_to_UN = True
+_pdcfg.settings.reading_validation_mode = _pdcfg.WARN
 
 # DICOM 标准根：以此开头的 UID 是类/传输语法等标准 UID，必须保留。
 DICOM_STD_ROOT = "1.2.840.10008"
