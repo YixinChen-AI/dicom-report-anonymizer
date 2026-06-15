@@ -47,7 +47,7 @@ BLANK_KEYWORDS = {
     "ReferringPhysicianTelephoneNumbers", "PhysiciansOfRecord",
     "PerformingPhysicianName", "NameOfPhysiciansReadingStudy", "OperatorsName",
     "RequestingPhysician", "RequestingService", "ScheduledPerformingPhysicianName",
-    "StationName", "DeviceSerialNumber",
+    # 注：StationName / DeviceSerialNumber 属「设备」，按用户决定保留（与 XML 一致）。
     "StudyID", "AccessionNumber",
     "AdmissionID", "IssuerOfAdmissionID", "ServiceEpisodeID",
     "PerformedProcedureStepID", "RequestedProcedureID", "ScheduledProcedureStepID",

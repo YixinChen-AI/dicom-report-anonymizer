@@ -23,6 +23,8 @@ def _make_ds(sop_class=CT_SOP_CLASS, modality="CT", burned="NO"):
     ds.PatientWeight = "65"                          # PET SUV 需要，应保留
     ds.PatientAddress = "Beijing Haidian"
     ds.InstitutionName = "Peking University Hospital"
+    ds.StationName = "CTAWP71120"
+    ds.DeviceSerialNumber = "SN12345"
     ds.ReferringPhysicianName = "Dr^Zhang"
     ds.OperatorsName = "Tech^Li"
     ds.AccessionNumber = "ACC123456"
@@ -74,6 +76,8 @@ def test_research_fields_preserved():
     assert d.PatientAge == "070Y"
     assert str(d.PatientWeight) == "65"
     assert d.StudyDate == "20190228"      # 日期保留
+    assert d.StationName == "CTAWP71120"  # 设备保留（用户决定）
+    assert d.DeviceSerialNumber == "SN12345"
 
 
 def test_private_tags_removed():
