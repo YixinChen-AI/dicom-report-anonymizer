@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -12,7 +13,11 @@ import pydicom
 # 这些文件本就允许含真实 PHI，不算 leak。
 IGNORE_NAMES = {"crosswalk.csv", "run_report.md", "run_report.html", "run_report.txt"}
 
-_SCAN_EXT = {".xml", ".txt", ".json", ".dcm"}
+# 启发式残留 PHI 正则（即使未进 secrets 也能报警）：中国身份证 18 位、大陆手机 11 位。
+PHI_REGEXES = [
+    ("身份证号", re.compile(r"(?<!\d)\d{17}[\dXx](?!\d)")),
+    ("手机号", re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)")),
+]
 
 
 @dataclass
@@ -27,12 +32,23 @@ def _meaningful(secrets) -> list[str]:
     return sorted({str(s) for s in secrets if s and len(str(s)) >= 2}, key=len, reverse=True)
 
 
+def _regex_hits(text: str) -> list:
+    out = []
+    for label, rx in PHI_REGEXES:
+        m = rx.search(text)
+        if m:
+            i = m.start()
+            out.append((label, text[max(0, i - 20):i + len(m.group()) + 20]))
+    return out
+
+
 def verify_text(text: str, secrets) -> list:
     found = []
     for tok in _meaningful(secrets):
         idx = text.find(tok)
         if idx >= 0:
             found.append((tok, text[max(0, idx - 20):idx + len(tok) + 20]))
+    found.extend(_regex_hits(text))
     return found
 
 
@@ -53,36 +69,40 @@ def verify_dicom_file(path, secrets) -> list:
         for tok in toks:
             if tok in val:
                 found.append((str(elem.tag), tok))
+        for label, rx in PHI_REGEXES:
+            if rx.search(val):
+                found.append((str(elem.tag), label))
     return found
 
 
 def verify_output_tree(output_root, secrets, ignore=IGNORE_NAMES) -> list:
+    """回扫整个输出：.dcm 查标签，其余按文本解码后查（已知 token + 启发式正则）。
+
+    未知扩展名也尝试文本扫描（fail-closed）；只有解不出文本的二进制（如图片）才跳过。
+    """
     output_root = Path(output_root)
     leaks: list = []
     toks = _meaningful(secrets)
-    if not toks:
-        return leaks
     for f in output_root.rglob("*"):
         if not f.is_file() or f.name in ignore:
             continue
-        ext = f.suffix.lower()
-        if ext == ".dcm":
+        if f.suffix.lower() == ".dcm":
             for tag, tok in verify_dicom_file(f, toks):
                 leaks.append(Leak(file=str(f), kind="dicom", token=tok, detail=tag))
-        elif ext in _SCAN_EXT:
+            continue
+        try:
+            raw = f.read_bytes()
+        except OSError:
+            continue
+        text = None
+        for codec in ("utf-8", "gbk"):   # 不用 latin-1，避免二进制乱码误报
             try:
-                raw = f.read_bytes()
-            except OSError:
+                text = raw.decode(codec)
+                break
+            except UnicodeDecodeError:
                 continue
-            text = None
-            for codec in ("utf-8", "gbk", "latin-1"):
-                try:
-                    text = raw.decode(codec)
-                    break
-                except UnicodeDecodeError:
-                    continue
-            if text is None:
-                continue
-            for tok, ctx in verify_text(text, toks):
-                leaks.append(Leak(file=str(f), kind="text", token=tok, detail=ctx))
+        if text is None:
+            continue
+        for tok, ctx in verify_text(text, toks):
+            leaks.append(Leak(file=str(f), kind="text", token=tok, detail=ctx))
     return leaks

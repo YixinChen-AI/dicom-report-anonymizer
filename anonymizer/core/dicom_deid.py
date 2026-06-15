@@ -14,7 +14,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from secrets import token_hex
 
+from pydicom.multival import MultiValue
 from pydicom.uid import generate_uid
 
 # DICOM 标准根：以此开头的 UID 是类/传输语法等标准 UID，必须保留。
@@ -22,6 +24,8 @@ DICOM_STD_ROOT = "1.2.840.10008"
 
 # Secondary Capture Image Storage 及其家族前缀（疑似含烧录文字）。
 SC_SOP_PREFIX = "1.2.840.10008.5.1.4.1.1.7"
+# 封装文档（PDF/CDA）SOPClass：内含原始报告，需人工复核。
+ENCAPSULATED_SOP_PREFIX = "1.2.840.10008.5.1.4.1.1.104"
 
 # 需要清空的 PHI 标签（保留 PatientSex/Age/Weight/Size/各种 Date 等科研字段）。
 BLANK_KEYWORDS = {
@@ -55,8 +59,9 @@ _PATIENT_ID_TAG = (0x0010, 0x0020)
 class UidMapper:
     """原 UID → 新 UID 的一致性映射（确定性，便于测试与跨文件一致）。"""
 
-    def __init__(self, salt: str = "dicom-report-anonymizer"):
-        self._salt = salt
+    def __init__(self, salt: str | None = None):
+        # 默认每次运行随机盐：新 UID 不可由原 UID + 公开代码复算关联回原检查。
+        self._salt = salt if salt is not None else token_hex(16)
         self._map: dict[str, str] = {}
 
     def __call__(self, original: str) -> str:
@@ -97,6 +102,8 @@ def _detect_burned_in(ds) -> tuple[bool, str]:
     sop = str(ds.get("SOPClassUID", ""))
     if sop.startswith(SC_SOP_PREFIX):
         return True, "SOPClass=Secondary Capture Image Storage"
+    if sop.startswith(ENCAPSULATED_SOP_PREFIX) or "EncapsulatedDocument" in ds:
+        return True, "EncapsulatedDocument（封装PDF/CDA，内含原始报告，需人工复核）"
     return False, ""
 
 
@@ -115,8 +122,17 @@ def deidentify_dataset(ds, pseudo_id: str, uid_mapper: UidMapper, *,
         targets.append(ds.file_meta)
     for sub in targets:
         for elem in sub:
-            if elem.VR == "UI" and isinstance(elem.value, str) and _should_remap_uid(elem.value):
-                elem.value = uid_mapper(elem.value)
+            if elem.VR != "UI":
+                continue
+            v = elem.value
+            if isinstance(v, (MultiValue, list)):
+                new = [uid_mapper(x) if (isinstance(x, str) and _should_remap_uid(x)) else x
+                       for x in v]
+                if list(new) != list(v):
+                    res.uids_remapped += sum(1 for a, b in zip(v, new) if a != b)
+                    elem.value = new
+            elif isinstance(v, str) and _should_remap_uid(v):
+                elem.value = uid_mapper(v)
                 res.uids_remapped += 1
 
     # 2) 清空 PHI 标签 + PN 标签（除 PatientName）+ overlay/curve；替换 PatientName/ID
@@ -173,7 +189,10 @@ def deidentify_dataset(ds, pseudo_id: str, uid_mapper: UidMapper, *,
             except KeyError:
                 pass
 
-    # 3) 日期处理
+    # 3) 清空 128 字节 preamble（可能含原始导出路径/系统注释）
+    ds.preamble = b"\x00" * 128
+
+    # 4) 日期处理
     if not keep_dates:
         for sub in _iter_datasets(ds):
             for elem in sub:

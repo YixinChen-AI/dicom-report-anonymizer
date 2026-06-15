@@ -1,6 +1,6 @@
 import pydicom
 
-from anonymizer.core.pipeline import run_pipeline
+from anonymizer.core.pipeline import DATA_SUBDIR, PRIVATE_SUBDIR, run_pipeline
 from tests._synth import write_synth_dataset
 
 
@@ -9,12 +9,13 @@ def test_pipeline_end_to_end(tmp_path):
     out = tmp_path / "out"
     report = run_pipeline(src, out)
 
-    # 两个患者，假 ID 顺序
-    assert (out / "Patient_0001").is_dir()
-    assert (out / "Patient_0002").is_dir()
+    data = out / DATA_SUBDIR
+    # 两个患者，假 ID 顺序，放在可分享数据子目录
+    assert (data / "Patient_0001").is_dir()
+    assert (data / "Patient_0002").is_dir()
 
     # DICOM 去标识后存在
-    dcms = list(out.rglob("*.dcm"))
+    dcms = list(data.rglob("*.dcm"))
     assert len(dcms) == 4
     ds = pydicom.dcmread(dcms[0])
     assert str(ds.PatientName).startswith("Patient_")
@@ -22,15 +23,16 @@ def test_pipeline_end_to_end(tmp_path):
     assert ds.PatientBirthDate == ""
 
     # XML 去标识后存在
-    xmls = list(out.rglob("*.xml"))
+    xmls = list(data.rglob("*.xml"))
     assert len(xmls) == 2
 
     # PDF/JPG 不进输出
     assert list(out.rglob("*.pdf")) == []
     assert list(out.rglob("*.jpg")) == []
 
-    # 对照表生成
-    assert (out / "crosswalk.csv").exists()
+    # 对照表生成在私密子目录（不与可分享数据混放）
+    assert (out / PRIVATE_SUBDIR / "crosswalk.csv").exists()
+    assert not (data / "crosswalk.csv").exists()
 
 
 def test_pipeline_no_phi_leak(tmp_path):

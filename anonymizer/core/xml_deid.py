@@ -17,12 +17,15 @@ REPLACE_WITH_PSEUDO = [
     "PatientName", "PatientNameC", "PatientFN", "PatientFNC",
     "PatientSN", "PatientSNC", "PatientID",
 ]
-# 其它 PHI → 清空
+# 其它 PHI → 清空（含医院/科室/床号/医生等常见报告字段，站点异构时可继续扩）
 BLANK_TAGS = [
     "PatientUID", "PatientBirthday", "OutPatientNo", "InPatientNo", "CaseNO",
     "Patient_tel", "patient_cellphone", "Patient_Address", "patient_idcard",
     "AccessionNumber", "ReportingPhysician", "ReferringPhysician",
     "StudyInstanceUID", "StudyID",
+    "HospitalName", "Hospital", "Department", "Dept", "Ward", "BedNo", "BedNumber",
+    "ReportDoctor", "ExamDoctor", "AuditDoctor", "VerifyDoctor", "ApplyDoctor",
+    "RequestDoctor", "OperatorName", "TechnicianName",
 ]
 # harvest：作为真实姓名 token 收集
 HARVEST_NAME_TAGS = ["PatientName", "PatientNameC", "PatientFN", "PatientFNC",
@@ -31,6 +34,10 @@ HARVEST_NAME_TAGS = ["PatientName", "PatientNameC", "PatientFN", "PatientFNC",
 HARVEST_ID_TAGS = ["PatientID", "OutPatientNo", "InPatientNo", "CaseNO",
                    "StudyInstanceUID", "patient_idcard", "Patient_tel",
                    "patient_cellphone"]
+# harvest：被清空的自由文本 PHI（医生/地址）也收进 secrets，
+# 以便正文同值被替换、verify 能查到残留。
+HARVEST_TEXT_TAGS = ["Patient_Address", "ReportingPhysician", "ReferringPhysician",
+                     "ReportDoctor", "ExamDoctor", "AuditDoctor", "HospitalName"]
 
 
 @dataclass
@@ -56,7 +63,8 @@ def _decode(data) -> tuple[str, str]:
 
 
 def _tag_pattern(tag: str) -> re.Pattern:
-    return re.compile(rf"(<{tag}>)(.*?)(</{tag}>)", re.IGNORECASE | re.DOTALL)
+    # \b 防前缀冲突（PatientName 不误匹配 PatientNameC）；[^>]* 容忍属性/空白。
+    return re.compile(rf"(<{tag}\b[^>]*>)(.*?)(</{tag}>)", re.IGNORECASE | re.DOTALL)
 
 
 def _inner_values(text: str, tag: str) -> list[str]:
@@ -75,6 +83,11 @@ def harvest_identifiers(data) -> dict:
         for v in _inner_values(text, tag):
             if v.strip():
                 ids.add(v.strip())
+    # 医生/地址等自由文本 PHI 也收进 secrets（正文同值替换 + verify 覆盖）
+    for tag in HARVEST_TEXT_TAGS:
+        for v in _inner_values(text, tag):
+            if v.strip():
+                names.add(v.strip())
     return {"names": names, "ids": ids}
 
 

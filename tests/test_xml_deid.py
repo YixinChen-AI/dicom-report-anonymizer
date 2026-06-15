@@ -90,6 +90,34 @@ def test_output_bytes_decodable():
     assert "encoding=" in res.after_text
 
 
+def test_tag_with_attributes_scrubbed():
+    xml = ('<?xml version="1.0" encoding="gb2312"?><root>'
+           '<PatientNameC lang="zh">测试名</PatientNameC>'
+           '<ReportDoctor>张医生</ReportDoctor></root>')
+    res = deidentify_xml(xml.encode("gb2312"), "Patient_0001")
+    assert "测试名" not in res.after_text       # 带属性标签也被清
+    assert "Patient_0001" in res.after_text
+    assert "<ReportDoctor></ReportDoctor>" in res.after_text  # 扩充的医生字段被清空
+
+
+def test_tag_prefix_not_confused():
+    # PatientName 不应误伤 PatientNameC（\b 边界）
+    xml = ('<?xml version="1.0" encoding="gb2312"?><root>'
+           '<PatientName>Pinyin</PatientName><PatientNameC>测试名</PatientNameC></root>')
+    res = deidentify_xml(xml.encode("gb2312"), "Patient_0001")
+    assert "<PatientName>Patient_0001</PatientName>" in res.after_text
+    assert "<PatientNameC>Patient_0001</PatientNameC>" in res.after_text
+
+
+def test_harvest_collects_doctor_and_address():
+    xml = ('<?xml version="1.0" encoding="gb2312"?><PATIENT>'
+           '<Patient_Address>北京海淀</Patient_Address>'
+           '<ReportingPhysician>张医生</ReportingPhysician></PATIENT>')
+    ident = harvest_identifiers(xml.encode("gb2312"))
+    assert "北京海淀" in ident["names"]
+    assert "张医生" in ident["names"]
+
+
 def test_changes_recorded():
     res = deidentify_xml(_bytes(), "Patient_0001", secrets=[])
     labels = {c[0] for c in res.changes}

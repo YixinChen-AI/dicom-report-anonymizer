@@ -133,6 +133,35 @@ def test_changes_diff_recorded():
     assert pn[2] == "Patient_0001"
 
 
+def test_uid_mapper_random_salt():
+    u1, u2 = UidMapper(), UidMapper()
+    uid = "1.2.999.55"
+    assert u1(uid) != u2(uid)     # 不同运行随机盐 → 新 UID 不可复算关联
+    assert u1(uid) == u1(uid)     # 同实例内一致
+
+
+def test_multivalue_uid_remapped():
+    ds = Dataset()
+    ds.add_new(0x0008010D, "UI", ["1.2.999.0.1", "1.2.999.0.2"])
+    res = deidentify_dataset(ds, "Patient_0001", UidMapper())
+    vals = list(res.dataset[0x0008010D].value)
+    assert vals != ["1.2.999.0.1", "1.2.999.0.2"]
+    assert len(vals) == 2 and vals[0] != vals[1]
+
+
+def test_preamble_cleared():
+    ds = _make_ds()
+    ds.preamble = b"\x01" * 128
+    res = deidentify_dataset(ds, "Patient_0001", UidMapper())
+    assert res.dataset.preamble == b"\x00" * 128
+
+
+def test_encapsulated_document_flagged():
+    res = deidentify_dataset(
+        _make_ds(sop_class="1.2.840.10008.5.1.4.1.1.104.1"), "Patient_0001", UidMapper())
+    assert res.burned_in_suspected is True
+
+
 def test_idempotent_no_phi_left():
     """去标识后再扫一遍，原始姓名/ID 不应出现在任何标签值里。"""
     ds = _make_ds()

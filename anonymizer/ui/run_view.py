@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (QCheckBox, QFileDialog, QFormLayout, QHBoxLayout,
                                QProgressBar, QPushButton, QVBoxLayout, QWidget)
 
 from anonymizer.core import scanner
+from anonymizer.core.pipeline import DATA_SUBDIR, PRIVATE_SUBDIR
 from anonymizer.ui.worker import PipelineWorker
 
 
@@ -57,7 +58,7 @@ class RunWidget(QWidget):
         self.btn_report.setEnabled(False)
         self.btn_open_out.clicked.connect(lambda: _open_path(self.out_edit.text()))
         self.btn_report.clicked.connect(
-            lambda: _open_path(str(Path(self.out_edit.text()) / "run_report.md")))
+            lambda: _open_path(str(Path(self.out_edit.text()) / PRIVATE_SUBDIR / "run_report.md")))
         res.addWidget(self.btn_open_out)
         res.addWidget(self.btn_report)
         res.addStretch(1)
@@ -146,6 +147,8 @@ class RunWidget(QWidget):
         self._log("—— 完成 ——")
         self._log(f"患者 {report.n_patients}，DICOM {report.n_dicom}，XML {report.n_xml}，"
                   f"丢弃 PDF {report.n_pdf_dropped}、图片 {report.n_image_dropped}")
+        self._log(f"可分享的去标识数据在「{DATA_SUBDIR}」；对照表/报告在「{PRIVATE_SUBDIR}」"
+                  f"（含真实信息，切勿随数据一起分享）。")
         if report.burned_in:
             self._log(f"⚠ {len(report.burned_in)} 个文件疑似烧录文字，请到「手动涂黑」复核。")
         if ok:

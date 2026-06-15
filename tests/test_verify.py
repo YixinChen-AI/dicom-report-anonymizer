@@ -15,6 +15,14 @@ def test_verify_text_clean():
     assert verify_text("Patient_0001 报告正常", ["万学中"]) == []
 
 
+def test_verify_text_regex_catches_idcard_phone():
+    # 即使未进 secrets，身份证/手机号也被启发式正则抓到
+    leaks = verify_text("身份证 110108199001011234，手机 13800138000", [])
+    labels = [t for t, _ in leaks]
+    assert "身份证号" in labels
+    assert "手机号" in labels
+
+
 def test_verify_dicom_finds_planted_leak(tmp_path):
     p = make_dicom_file(tmp_path / "a.dcm", patient_name="Wan^XueZhong", patient_id="P13509")
     leaks = verify_dicom_file(p, ["Wan^XueZhong", "P13509"])

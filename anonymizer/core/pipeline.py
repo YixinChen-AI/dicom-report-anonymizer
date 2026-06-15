@@ -14,6 +14,11 @@ from .report import BurnedInFlag, Failure, RunReport
 from .xml_deid import deidentify_xml, harvest_identifiers
 
 
+# 输出分两个子目录：可分享的去标识数据 vs 含 PHI 的对照表/报告。
+DATA_SUBDIR = "去标识输出_可分享"
+PRIVATE_SUBDIR = "_对照表与报告_请勿分享"
+
+
 def _now() -> str:
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -60,10 +65,13 @@ def _build_crosswalk(scan) -> Crosswalk:
 def run_pipeline(input_root, output_root, *, progress=None, keep_dates=True) -> RunReport:
     input_root = Path(input_root)
     output_root = Path(output_root)
-    output_root.mkdir(parents=True, exist_ok=True)
+    data_root = output_root / DATA_SUBDIR        # 可分享
+    private_root = output_root / PRIVATE_SUBDIR   # 含 PHI，勿分享
+    data_root.mkdir(parents=True, exist_ok=True)
+    private_root.mkdir(parents=True, exist_ok=True)
 
     scan = scanner.scan(input_root)
-    report = RunReport(input_root=str(input_root), output_root=str(output_root), started=_now())
+    report = RunReport(input_root=str(input_root), output_root=str(data_root), started=_now())
     report.n_patients = len(scan.patients)
 
     cw = _build_crosswalk(scan)
@@ -81,7 +89,7 @@ def run_pipeline(input_root, output_root, *, progress=None, keep_dates=True) -> 
     for pg in scan.patients:
         pseudo = cw.pseudo_for(pg.folder_name)
         secrets = cw.secrets(pg.folder_name)
-        out_pdir = output_root / pseudo
+        out_pdir = data_root / pseudo
 
         for i, dcm in enumerate(pg.dicom):
             try:
@@ -117,10 +125,12 @@ def run_pipeline(input_root, output_root, *, progress=None, keep_dates=True) -> 
         report.n_pdf_dropped += len(pg.pdf)
         report.n_image_dropped += len(pg.image)
 
-    cw.to_csv(output_root / "crosswalk.csv")
-    report.leaks = verify_mod.verify_output_tree(output_root, list(cw.all_secrets().keys()))
+    # 对照表 + 报告写入私密子目录（含 PHI，绝不随去标识数据分享）
+    cw.to_csv(private_root / "crosswalk.csv")
+    # 只回扫可分享的去标识数据
+    report.leaks = verify_mod.verify_output_tree(data_root, list(cw.all_secrets().keys()))
     report.finished = _now()
-    (output_root / "run_report.md").write_text(report.to_markdown(), encoding="utf-8")
+    (private_root / "run_report.md").write_text(report.to_markdown(), encoding="utf-8")
 
     if progress and total == 0:
         progress(0, 0, "无可处理文件")
