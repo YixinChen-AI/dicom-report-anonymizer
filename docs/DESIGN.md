@@ -98,9 +98,9 @@ tests/             # 合成 DICOM/XML 单测（含"埋一个 PHI 看 verify 抓�
 ## 6. 数据流
 
 输入根目录 → `scanner` 分组为患者 → `crosswalk` 分配 `Patient_000N` →
-对每个患者：`dicom_deid` 写入 `output/Patient_000N/...`，`xml_deid` 去标识 XML，
-丢弃 PDF/JPG（除非用户涂黑保留）→ 写 `crosswalk.csv` + 运行报告 →
-`verify` 回扫输出确认无残留真实 PHI。
+对每个患者：`dicom_deid` / `xml_deid` 写入 `output/去标识输出_可分享/Patient_000N/...`，
+丢弃 PDF/JPG（除非用户涂黑保留）→ `crosswalk.csv` + 运行报告写入
+`output/_对照表与报告_请勿分享/`（与可分享数据物理分离）→ `verify` 回扫可分享数据确认无残留真实 PHI。
 
 ## 7. 错误处理与安全红线
 

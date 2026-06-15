@@ -111,14 +111,49 @@ anonymizer/ui/     main_window / run_view / review_view / redact_view / worker
 
 ## 7. 测试
 
-TDD 开发，**44 项测试全部通过**（crosswalk 8 / dicom_deid 9 / xml_deid 9 / scanner 4 / verify 4 / pipeline 4 / preview 2 / ui 4）。含"故意埋一个 PHI 看 verify 抓不抓得到"的对抗测试。
+TDD 开发，**52 项测试全部通过**（crosswalk 8 / dicom_deid 13 / xml_deid 12 / scanner 4 / verify 5 / pipeline 4 / preview 2 / ui 4）。含"故意埋一个 PHI 看 verify 抓不抓得到"的对抗测试，以及 Codex 审核后新增的随机盐/preamble/多值UID/正则兜底等测试。
 CI：`tests.yml` 在 ubuntu 无头跑 pytest；`build-windows.yml` 在 windows 打 exe。
 
 ---
 
 ## 8. Codex 交叉审核与修正
 
-> （本节由 Codex 独立审核结果与对应修正填充。）
+**方法**：用 `codex exec`（模型 gpt-5.5，read-only 沙箱，xhigh 推理）独立、对抗性地审计去标识完整性，
+专找"去标识后仍可能残留 PHI 的漏洞"。Codex 共提 **9 高 / 10 中 / 3 低** 项。
+我对每条用自己的判断分诊（不盲从），按"真实风险 × 改动成本 × 是否符合用户决策"采纳或记为已知局限。
+
+### 8.1 已采纳并修复（commit `9277eb1`）
+
+| 严重度 | Codex 指出的问题 | 修复 |
+|---|---|---|
+| 高 | `UidMapper` 盐硬编码，原 UID + 公开代码可复算新 UID 回关联 | 改为**每次运行随机盐** (`token_hex(16)`) |
+| 高 | DICOM 128 字节 preamble 未清，原始导出路径/注释随 `save_as` 写回 | 保存前 `ds.preamble = b"\x00"*128` |
+| 高 | `crosswalk.csv` 明文写在输出根，分享输出即泄露全部姓名/ID | **分离目录**：去标识数据→`去标识输出_可分享/`，对照表+报告→`_对照表与报告_请勿分享/` |
+| 高 | 运行报告含原始路径/患者文件夹名/leak token | 报告随对照表一并放入私密子目录 |
+| 高 | XML 正则只匹配 `<Tag>value</Tag>`，漏带属性/空白的标签 | 正则改 `<{tag}\b[^>]*>`（`\b` 防 PatientName 误伤 PatientNameC） |
+| 高 | verify 只查已知 secrets，未被 harvest 的 PHI 永不报警 | verify 加**身份证(18)/手机号(11)启发式正则** + 扫描所有可解码文本文件(fail-closed) |
+| 中 | 多值(MultiValue) UID 未处理，可残留原 Referenced UID | 统一处理单值与多值 UI 元素 |
+| 中 | XML PHI 字段表过窄(医院/科室/床号/医生) | 扩 `BLANK_TAGS`；`harvest_identifiers` 也收医生/地址进 secrets（正文同值替换 + verify 覆盖） |
+| 中 | 烧录检测漏封装文档 | `_detect_burned_in` 补 EncapsulatedDocument(封装 PDF/CDA) 标记 |
+
+复验：**52 项测试全部通过**（新增 8 项针对上述修复的测试），真实样本仍**零残留**，preamble 清零，目录分离正确。
+
+### 8.2 评估后记为已知局限（符合用户决策 / YAGNI / 超出本版范围）
+
+| Codex 指出 | 不在本版处理的理由 |
+|---|---|
+| 像素烧录应 fail-closed / 接 OCR | 用户明确要保留 DICOM 主数据；PET 主图实测无烧录。本版**标红进报告 + 手动涂黑**，不自动丢弃合法影像 |
+| 保留所有 DA/DT/TM 超出"保留检查日期" | 用户明确选择"保留检查日期"；如需更严可加 date-shift（已在 DESIGN 列为可选） |
+| `StudyDescription/SeriesDescription/ProtocolName` 未清 | 科研需要保留；自由文本里的已知姓名由 `extra_secrets` + verify 正则兜底 |
+| verify 不解析 PixelData/封装文档二进制 | 像素级 OCR 超出本版；封装文档已被烧录检测标红人工复核 |
+| 未读 `.xls` 总表 | 总表整张是 PHI，默认丢弃；替换/校验依赖文件夹名+XML+DICOM(已验证足够) |
+| 单字姓名/顺序编号 re-id | 本工具定位为"带明文对照表的**假名化**"（用户要可逆回溯），非强匿名 |
+
+### 8.3 Codex 总体评价与我的回应
+
+> Codex：*"当前工具更接近'带明文对照表的假名化/有限数据集'，不满足对外强匿名分享。"*
+
+**回应**：这与本工具的**设计定位一致**——用户明确要求"保留明文 CSV 对照表"(可逆假名化)，用于科研内部回溯，而非完全不可逆的对外公开。在该定位下，已落实 Codex 全部高危中可操作项，并把"对照表/报告"与"可分享数据"物理分离、加上启发式残留校验兜底。若未来需要"对外强匿名"，DESIGN 已预留 date-shift、随机伪 ID、OCR 涂黑等扩展点。
 
 ---
 
@@ -126,9 +161,11 @@ CI：`tests.yml` 在 ubuntu 无头跑 pytest；`build-windows.yml` 在 windows �
 
 1. 到仓库 Releases 下载 `DicomReportAnonymizer.exe`（或 Actions 构件）。
 2. 运行 → 「① 去标识」选输入文件夹（**子目录为各患者**的那一层）与输出文件夹 → 「扫描预览」确认患者数 → 「开始去标识」。
-3. 「② 前后对照」抽查 DICOM/XML 的前后差异确认 PHI 已去除。
-4. 「③ 手动涂黑」处理需保留的报告截图。
-5. 妥善保管输出里的 `crosswalk.csv`（唯一回溯钥匙，含 PHI）。
+3. 输出分两个子目录：
+   - `去标识输出_可分享/` —— 去标识后的 DICOM + 报告，**可对外分享**。
+   - `_对照表与报告_请勿分享/` —— `crosswalk.csv`(回溯钥匙) + 运行报告，**含真实信息，切勿随数据分享**。
+4. 「② 前后对照」抽查 DICOM/XML 的前后差异确认 PHI 已去除。
+5. 「③ 手动涂黑」处理需保留的报告截图。
 
 开发/源码运行见 [README](../README.md)。
 
