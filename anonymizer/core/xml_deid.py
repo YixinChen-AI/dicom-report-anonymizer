@@ -17,15 +17,24 @@ REPLACE_WITH_PSEUDO = [
     "PatientName", "PatientNameC", "PatientFN", "PatientFNC",
     "PatientSN", "PatientSNC", "PatientID",
 ]
-# 其它 PHI → 清空（含医院/科室/床号/医生等常见报告字段，站点异构时可继续扩）
+# 其它 PHI → 清空。标签匹配大小写不敏感；含本院 .NET DataSet 报告的真实字段名，
+# 站点异构时可继续扩。保留：设备/序列/协议(StationName/Modality/SeriesDescription)、
+# 临床诊断/病史/报告正文、日期、性别/年龄/身高/体重。
 BLANK_TAGS = [
+    # 患者标识
     "PatientUID", "PatientBirthday", "OutPatientNo", "InPatientNo", "CaseNO",
     "Patient_tel", "patient_cellphone", "Patient_Address", "patient_idcard",
-    "AccessionNumber", "ReportingPhysician", "ReferringPhysician",
-    "StudyInstanceUID", "StudyID",
-    "HospitalName", "Hospital", "Department", "Dept", "Ward", "BedNo", "BedNumber",
+    "AccessionNumber", "StudyInstanceUID", "StudyID",
+    # 医生 / 技师 姓名与工号
+    "ReportingPhysician", "ReferringPhysician", "PreReferringPhysician",
+    "ReportPhysician", "shenqingYiShi", "Operator", "OperatorCode", "CREATED_BY",
     "ReportDoctor", "ExamDoctor", "AuditDoctor", "VerifyDoctor", "ApplyDoctor",
     "RequestDoctor", "OperatorName", "TechnicianName",
+    # 病区 / 床号 / 科室 / 住院信息（患者位置类）
+    "HospitalName", "Hospital", "Department", "Ward", "BedNo", "BedNumber",
+    "department", "bingqu", "chuanghao", "laiyuan",
+    # 保险 / 费用 / VIP
+    "InsuranceType", "FactPrice", "VIP",
 ]
 # harvest：作为真实姓名 token 收集
 HARVEST_NAME_TAGS = ["PatientName", "PatientNameC", "PatientFN", "PatientFNC",
@@ -34,10 +43,12 @@ HARVEST_NAME_TAGS = ["PatientName", "PatientNameC", "PatientFN", "PatientFNC",
 HARVEST_ID_TAGS = ["PatientID", "OutPatientNo", "InPatientNo", "CaseNO",
                    "StudyInstanceUID", "patient_idcard", "Patient_tel",
                    "patient_cellphone"]
-# harvest：被清空的自由文本 PHI（医生/地址）也收进 secrets，
-# 以便正文同值被替换、verify 能查到残留。
+# harvest：被清空的人名/地址也收进 secrets（正文同值替换 + verify 覆盖）。
+# 只收「姓名/地址」这类会在正文复现的，不收工号/费用/床号（避免误替换数字/通用词）。
 HARVEST_TEXT_TAGS = ["Patient_Address", "ReportingPhysician", "ReferringPhysician",
-                     "ReportDoctor", "ExamDoctor", "AuditDoctor", "HospitalName"]
+                     "PreReferringPhysician", "ReportPhysician", "shenqingYiShi",
+                     "Operator", "CREATED_BY", "ReportDoctor", "ExamDoctor",
+                     "AuditDoctor", "HospitalName"]
 
 
 @dataclass

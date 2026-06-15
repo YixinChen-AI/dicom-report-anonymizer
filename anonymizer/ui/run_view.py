@@ -49,6 +49,7 @@ class RunWidget(QWidget):
         layout.addWidget(self.progress)
 
         self.log = QPlainTextEdit(readOnly=True)
+        self.log.setMaximumBlockCount(100000)   # 限制内存：超大数据集时旧行滚出
         layout.addWidget(self.log, 1)
 
         res = QHBoxLayout()
@@ -127,6 +128,7 @@ class RunWidget(QWidget):
 
         self._worker = PipelineWorker(root, out, keep_dates=self.keep_dates.isChecked())
         self._worker.progress.connect(self._on_progress)
+        self._worker.logline.connect(self._log)        # 实时字段变更日志
         self._worker.done.connect(self._on_done)
         self._worker.failed.connect(self._on_failed)
         self._worker.start()
@@ -135,8 +137,6 @@ class RunWidget(QWidget):
         if total:
             self.progress.setMaximum(total)
             self.progress.setValue(done)
-        if done % 50 == 0 or done == total:
-            self._log(f"[{done}/{total}] {msg}")
 
     def _on_done(self, report):
         self.btn_run.setEnabled(True)

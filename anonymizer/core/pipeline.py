@@ -23,6 +23,19 @@ def _now() -> str:
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
+def _format_changes(rel: str, changes, extra: str = "") -> str:
+    """把单个文件的字段变更格式化成 log 文本块。"""
+    if not changes and not extra:
+        return f"✎ {rel}  （无字段变更）"
+    lines = [f"✎ {rel}"]
+    for label, before, after in changes:
+        b = before if len(before) <= 28 else before[:28] + "…"
+        lines.append(f"      {label}: {b} → {after if after else '✄清空'}")
+    if extra:
+        lines.append(f"      {extra}")
+    return "\n".join(lines)
+
+
 def _sanitize_relpath(rel: Path, secrets) -> Path:
     toks = sorted((s for s in secrets if s and len(s) >= 2), key=len, reverse=True)
     parts = []
@@ -62,7 +75,7 @@ def _build_crosswalk(scan) -> Crosswalk:
     return cw
 
 
-def run_pipeline(input_root, output_root, *, progress=None, keep_dates=True) -> RunReport:
+def run_pipeline(input_root, output_root, *, progress=None, log=None, keep_dates=True) -> RunReport:
     input_root = Path(input_root)
     output_root = Path(output_root)
     data_root = output_root / DATA_SUBDIR        # 可分享
@@ -102,6 +115,9 @@ def run_pipeline(input_root, output_root, *, progress=None, keep_dates=True) -> 
                 target.parent.mkdir(parents=True, exist_ok=True)
                 res.dataset.save_as(target, enforce_file_format=True)
                 report.n_dicom += 1
+                if log:
+                    extra = f"＋{res.uids_remapped} 个 UID 重映射 · {res.private_removed} 个私有标签移除"
+                    log(_format_changes(str(dcm.relative_to(input_root)), res.changes, extra))
                 if res.burned_in_suspected:
                     report.burned_in.append(
                         BurnedInFlag(pseudo, str(target), res.burned_in_reason))
@@ -117,6 +133,8 @@ def run_pipeline(input_root, output_root, *, progress=None, keep_dates=True) -> 
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(res.output_bytes)
                 report.n_xml += 1
+                if log:
+                    log(_format_changes(str(x.relative_to(input_root)), res.changes))
             except Exception as e:
                 report.n_xml_failed += 1
                 report.failures.append(Failure(str(x), repr(e)))

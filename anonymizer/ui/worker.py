@@ -10,6 +10,7 @@ from anonymizer.core.pipeline import run_pipeline
 
 class PipelineWorker(QThread):
     progress = Signal(int, int, str)   # done, total, message
+    logline = Signal(str)              # 每个文件的字段变更日志
     done = Signal(object)              # RunReport
     failed = Signal(str)
 
@@ -24,6 +25,7 @@ class PipelineWorker(QThread):
             report = run_pipeline(
                 self._input, self._output,
                 progress=lambda d, t, m: self.progress.emit(d, t, m),
+                log=lambda s: self.logline.emit(s),
                 keep_dates=self._keep_dates,
             )
             self.done.emit(report)

@@ -56,6 +56,17 @@ def test_pipeline_report_counts(tmp_path):
     assert "Patient" in md or "患者" in md
 
 
+def test_pipeline_log_callback(tmp_path):
+    src = write_synth_dataset(tmp_path / "ds")
+    out = tmp_path / "out"
+    lines = []
+    run_pipeline(src, out, log=lambda s: lines.append(s))
+    blob = "\n".join(lines)
+    assert "PatientName" in blob               # DICOM 字段变更被记录
+    assert "PatientNameC" in blob              # XML 字段变更被记录
+    assert any("UID 重映射" in s for s in lines)  # DICOM 额外信息
+
+
 def test_pipeline_progress_callback(tmp_path):
     src = write_synth_dataset(tmp_path / "ds")
     out = tmp_path / "out"
