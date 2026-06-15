@@ -24,13 +24,22 @@ def _now() -> str:
 
 
 def _format_changes(rel: str, changes, extra: str = "") -> str:
-    """把单个文件的字段变更格式化成 log 文本块。"""
+    """把单个文件的字段变更格式化成 log 文本块（同一变更去重，重复显示 ×N）。"""
     if not changes and not extra:
         return f"✎ {rel}  （无字段变更）"
     lines = [f"✎ {rel}"]
+    counts: dict = {}
+    order: list = []
     for label, before, after in changes:
+        key = (label, before, after)
+        if key not in counts:
+            order.append(key)
+        counts[key] = counts.get(key, 0) + 1
+    for label, before, after in order:
         b = before if len(before) <= 28 else before[:28] + "…"
-        lines.append(f"      {label}: {b} → {after if after else '✄清空'}")
+        n = counts[(label, before, after)]
+        suffix = f"  ×{n}" if n > 1 else ""
+        lines.append(f"      {label}: {b} → {after if after else '✄清空'}{suffix}")
     if extra:
         lines.append(f"      {extra}")
     return "\n".join(lines)
