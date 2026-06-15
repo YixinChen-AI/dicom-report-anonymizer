@@ -1,0 +1,32 @@
+name: build-windows
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: 安装依赖
+        run: pip install -r requirements-dev.txt
+      - name: PyInstaller 打包单文件 exe
+        run: pyinstaller --onefile --windowed --name DicomReportAnonymizer --paths . anonymizer/__main__.py
+      - name: 上传 exe 构件
+        uses: actions/upload-artifact@v4
+        with:
+          name: DicomReportAnonymizer-windows
+          path: dist/DicomReportAnonymizer.exe
+      - name: 打 tag 时发布 Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/DicomReportAnonymizer.exe

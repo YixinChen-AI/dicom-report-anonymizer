@@ -1,0 +1,23 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: 安装 Qt 运行所需系统库
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libxkbcommon0 libgl1
+      - name: 安装依赖
+        run: pip install -r requirements-dev.txt
+      - name: 跑测试（无头 Qt）
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: pytest -q
