@@ -1,0 +1,55 @@
+# ============================================================
+# 安全红线：绝不把任何真实数据 / PHI / 对照表 / 输出 提交进公开 repo
+# ============================================================
+# 真实数据集与解压目录
+*.zip
+90+*/
+data/
+input/
+samples_real/
+# 去标识输出
+output/
+out/
+deid_output/
+anonymized/
+# 对照表（含真实姓名/ID，是 PHI）
+*crosswalk*.csv
+*crosswalk*.json
+mapping*.csv
+# 真实医学影像与报告（任何位置）
+*.dcm
+*.DCM
+*.pdf
+*.xls
+*.xlsx
+*.svs
+*.tiff
+# 运行报告（可能含样本路径/姓名）
+run_report*.html
+run_report*.txt
+report_run*.md
+
+# ============================================================
+# Python
+# ============================================================
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+build/
+dist/
+*.spec.bak
+
+# ============================================================
+# OS / IDE
+# ============================================================
+.DS_Store
+.idea/
+.vscode/
+Thumbs.db
+
+# 允许：合成测试数据（tests/fixtures 下的假数据明确放行）
+!tests/fixtures/
