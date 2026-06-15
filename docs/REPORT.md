@@ -95,6 +95,24 @@ anonymizer/ui/     main_window / run_view / review_view / redact_view / worker
 ### 假 ID 与对照表（`crosswalk.py`）
 - 顺序 `Patient_000N`，幂等；secrets 过滤 <2 字符 token 防误伤；明文 CSV（utf-8-sig）往返。
 
+### 字段保留 / 去除策略（2026-06-15 与用户逐项确认）
+| 类别 | 处理 | 例子 |
+|---|---|---|
+| 患者姓名/ID/身份证/住址/电话/出生 | **去除** | 万学中、P13509、110108…、北京海淀 |
+| 检查号/住院号/门诊号/Accession | **去除** | 1902263576795、M001593629 |
+| 医生/技师姓名与工号 | **去除** | 报告/申请/转诊医师、操作员、CREATED_BY |
+| 病区/床号/科室/住院来源 | **去除** | department、bingqu、chuanghao、laiyuan |
+| 保险类型/费用/VIP | **去除** | InsuranceType、FactPrice、VIP |
+| 医院名称/地址/机构科室 | **去除** | InstitutionName/Address、InstitutionalDepartmentName |
+| **设备/工作站/序列号/机型** | **保留** | StationName、DeviceSerialNumber、Manufacturer、nudi |
+| **序列/协议/部位/临床诊断/病史/报告正文** | **保留** | SeriesDescription、BodyPartExamined、linchuangzhenduan |
+| **性别/年龄/身高/体重/检查日期** | **保留** | 科研所需 |
+
+> DICOM 与 XML 两边的「设备保留 / 机构去除」策略一致。字段表按本院 .NET DataSet 真实字段名编写，站点异构可在 `xml_deid.BLANK_TAGS` 扩展。
+
+### 实时变更日志（`pipeline` log 回调 → UI）
+去标识时**逐文件流式显示**改了哪些字段（DICOM 标签 + XML 字段，前→后值），log 风格，便于现场核对，无需事后逐个打开。
+
 ---
 
 ## 6. 真实样本验证结果
@@ -111,7 +129,9 @@ anonymizer/ui/     main_window / run_view / review_view / redact_view / worker
 
 ## 7. 测试
 
-TDD 开发，**52 项测试全部通过**（crosswalk 8 / dicom_deid 13 / xml_deid 12 / scanner 4 / verify 5 / pipeline 4 / preview 2 / ui 4）。含"故意埋一个 PHI 看 verify 抓不抓得到"的对抗测试，以及 Codex 审核后新增的随机盐/preamble/多值UID/正则兜底等测试。
+TDD 开发，**54 项测试全部通过**。含"故意埋一个 PHI 看 verify 抓不抓得到"的对抗测试、Codex 审核后新增的随机盐/preamble/多值UID/正则兜底测试，以及真实数据驱动新增的脏私有标签宽容解析、设备保留、实时日志等测试。
+
+此外用**独立暴力字节扫描**（不依赖工具内部 verify 逻辑）在真实 2 患者样本上复核：原始数据确含真实 PHI（姓名/ID/身份证/住址/医生名），去标识后患者身份 token **零残留**，设备/临床/日期按策略保留。
 CI：`tests.yml` 在 ubuntu 无头跑 pytest；`build-windows.yml` 在 windows 打 exe。
 
 ---
