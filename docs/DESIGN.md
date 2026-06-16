@@ -83,16 +83,21 @@ anonymizer/
     crosswalk.py   # 真实→假ID映射，分配 Patient_000N；明文 CSV 读写
     dicom_deid.py  # 单个 DICOM 去标识（标签 + UID 重映射 + 烧录检测）；返回前后 diff
     xml_deid.py    # 单个 XML 报告去标识；返回前后文本
+    policy.py      # 极简去标识策略：默认规则之上"额外去除/强制保留"（默认空=向后兼容）
+    discover.py    # 扫描发现数据集实际出现的标签/字段，产出候选清单 + 建议动作
     pipeline.py    # 编排：扫描→建表→逐患者处理→写输出（丢 PDF/JPG）→出报告
     verify.py      # ★安全网：回扫输出，残留任何真实姓名/ID 立即报警
     report.py      # 运行报告（状态 PASS/WARN/FAIL、数量、去掉的 PHI、需复核项）
     preview.py     # 为 UI 前后对照计算单文件前/后内容（无 Qt 依赖，可测试）
-  ui/
-    main_window.py # 选输入/输出、运行、进度日志
-    run_view.py    # 去标识主流程页 + 实时逐文件字段变更日志
-    review_view.py # ★前后对照视图（DICOM 标签 / XML 文本并排，PHI 高亮）
-    redact_view.py # 手动涂黑视图（图像打黑框，核心 ImageCanvas 可测试）
-    worker.py      # 后台线程跑 pipeline，发进度/日志信号
+  ui/                  # 三步向导：① 扫描·审核策略 → ② 执行匿名化 → ③ 可信结果
+    main_window.py     # 向导外壳（QStackedWidget 串起三步 + 顶部步骤指示）
+    scan_review_page.py# 第①步：扫描→审核候选标签(去除/假名/保留/未知)→产出 Policy
+    scan_worker.py     # 后台线程：scanner.scan + discover 候选标签
+    run_page.py        # 第②步：按 Policy 执行匿名化 + 实时逐文件字段变更日志
+    result_page.py     # 第③步：可信结果(PASS/WARN/FAIL) + 覆盖率 + 独立残留扫描
+    review_view.py     # 单文件前后对照视图（DICOM/XML 并排，PHI 高亮；当前未接入向导）
+    redact_view.py     # 手动涂黑视图（结果页弹窗调用，核心 ImageCanvas 可测试）
+    worker.py          # 后台线程跑 pipeline，发进度/日志信号
   app.py           # 入口
 tests/             # 合成 DICOM/XML 单测（含"埋一个 PHI 看 verify 抓不抓得到"）
 ```

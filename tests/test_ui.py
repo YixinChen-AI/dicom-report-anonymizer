@@ -10,6 +10,30 @@ def test_main_window_builds(qapp):
     assert win.windowTitle()
 
 
+def test_scan_review_build_policy(qapp):
+    from anonymizer.core.discover import FieldInfo
+    from anonymizer.ui.scan_review_page import ScanReviewPage
+    page = ScanReviewPage()
+    page.populate([
+        FieldInfo("DICOM", "PatientName", "PN", "W••n", 5, "假名"),
+        FieldInfo("DICOM", "InstitutionName", "LO", "B••r", 5, "去除"),
+        FieldInfo("DICOM", "ImageComments", "LT", "A••d", 5, "未知"),
+        FieldInfo("XML", "PatientSex", "text", "F", 5, "保留"),
+    ])
+    # 默认无额外
+    p = page.build_policy()
+    assert p.extra_remove_dicom == set() and p.keep == set()
+    # 改：未知 ImageComments → 去除；去除 InstitutionName → 保留
+    for rec in page._rows:
+        if rec["name"] == "ImageComments":
+            rec["combo"].setCurrentText("去除")
+        if rec["name"] == "InstitutionName":
+            rec["combo"].setCurrentText("保留")
+    p = page.build_policy()
+    assert "ImageComments" in p.extra_remove_dicom
+    assert "InstitutionName" in p.keep
+
+
 def test_review_dicom(qapp, tmp_path):
     from anonymizer.ui.review_view import ReviewWidget
     p = make_dicom_file(tmp_path / "a.dcm", patient_name="Wan^XueZhong", patient_id="P13509")

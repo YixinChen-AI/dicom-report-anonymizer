@@ -68,10 +68,14 @@ XML(.NET DataSet) PHI 字段：`PatientName/PatientNameC/PatientFN/FNC/SN/SNC`�
 单文件单职责，核心引擎与界面解耦、可独立测试：
 
 ```
-anonymizer/core/   scanner / crosswalk / dicom_deid / xml_deid /
-                   pipeline / verify / report / preview
-anonymizer/ui/     main_window / run_view / review_view / redact_view / worker
+anonymizer/core/   scanner / crosswalk / dicom_deid / xml_deid / policy /
+                   discover / pipeline / verify / report / preview
+anonymizer/ui/     main_window(三步向导) / scan_review_page / scan_worker /
+                   run_page / result_page / review_view / redact_view / worker
 ```
+
+界面为三步向导：① 扫描·审核策略（discover 发现候选标签 → 用户调整 → 产出 Policy）
+→ ② 执行匿名化（实时逐文件变更日志）→ ③ 可信结果（PASS/WARN/FAIL + 独立残留扫描）。
 
 数据流：扫描分组 → 建对照表(assign+harvest) → 逐患者去标识(DICOM/XML，丢 PDF/JPG) →
 写 `crosswalk.csv` → verify 回扫 → 运行报告。详见 [`DESIGN.md`](DESIGN.md)。
