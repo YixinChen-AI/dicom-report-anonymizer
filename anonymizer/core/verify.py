@@ -33,6 +33,15 @@ def _meaningful(secrets) -> list[str]:
     return sorted({str(s) for s in secrets if s and len(str(s)) >= 2}, key=len, reverse=True)
 
 
+def _find_token(tok: str, text: str) -> int:
+    """返回 token 在 text 中位置（-1=无）。纯数字 token 要求前后非数字，
+    避免短数字(如内部 UID 9910)嵌在更长数字串(SOPInstanceUID)里误报。"""
+    if tok.isdigit():
+        m = re.search(r"(?<!\d)" + re.escape(tok) + r"(?!\d)", text)
+        return m.start() if m else -1
+    return text.find(tok)
+
+
 def _regex_hits(text: str) -> list:
     out = []
     for label, rx in PHI_REGEXES:
@@ -46,7 +55,7 @@ def _regex_hits(text: str) -> list:
 def verify_text(text: str, secrets) -> list:
     found = []
     for tok in _meaningful(secrets):
-        idx = text.find(tok)
+        idx = _find_token(tok, text)
         if idx >= 0:
             found.append((tok, text[max(0, idx - 20):idx + len(tok) + 20]))
     found.extend(_regex_hits(text))
@@ -68,7 +77,7 @@ def verify_dicom_file(path, secrets) -> list:
         except Exception:
             continue
         for tok in toks:
-            if tok in val:
+            if _find_token(tok, val) >= 0:
                 found.append((str(elem.tag), tok))
         for label, rx in PHI_REGEXES:
             if rx.search(val):

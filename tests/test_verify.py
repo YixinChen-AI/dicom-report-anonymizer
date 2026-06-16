@@ -35,6 +35,14 @@ def test_verify_regex_no_false_positive_in_filename():
     assert leaks == []
 
 
+def test_verify_numeric_secret_not_matched_inside_longer_number():
+    # 短数字 secret(内部UID 9910)不应在更长数字串(SOPInstanceUID)里误报
+    assert verify_text("<SOPInstanceUID>82400001.4950095664</SOPInstanceUID>", ["9910"]) == []
+    # 但独立出现仍能抓到
+    leaks = verify_text("编号 9910 见报告", ["9910"])
+    assert "9910" in [t for t, _ in leaks]
+
+
 def test_verify_dicom_finds_planted_leak(tmp_path):
     p = make_dicom_file(tmp_path / "a.dcm", patient_name="Wan^XueZhong", patient_id="P13509")
     leaks = verify_dicom_file(p, ["Wan^XueZhong", "P13509"])
