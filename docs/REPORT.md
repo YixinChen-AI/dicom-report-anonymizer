@@ -68,7 +68,7 @@ XML(.NET DataSet) PHI 字段：`PatientName/PatientNameC/PatientFN/FNC/SN/SNC`�
 单文件单职责，核心引擎与界面解耦、可独立测试：
 
 ```
-anonymizer/core/   scanner / crosswalk / dicom_deid / xml_deid / redact /
+anonymizer/core/   scanner / crosswalk / dicom_deid / xml_deid /
                    pipeline / verify / report / preview
 anonymizer/ui/     main_window / run_view / review_view / redact_view / worker
 ```
@@ -129,7 +129,7 @@ anonymizer/ui/     main_window / run_view / review_view / redact_view / worker
 
 ## 7. 测试
 
-TDD 开发，**54 项测试全部通过**。含"故意埋一个 PHI 看 verify 抓不抓得到"的对抗测试、Codex 审核后新增的随机盐/preamble/多值UID/正则兜底测试，以及真实数据驱动新增的脏私有标签宽容解析、设备保留、实时日志等测试。
+TDD 开发，**64 项测试全部通过**。含"故意埋一个 PHI 看 verify 抓不抓得到"的对抗测试、Codex 审核后新增的随机盐/preamble/多值UID/正则兜底测试，以及真实数据驱动新增的脏私有标签宽容解析、设备保留、实时日志等测试。
 
 此外用**独立暴力字节扫描**（不依赖工具内部 verify 逻辑）在真实 2 患者样本上复核：原始数据确含真实 PHI（姓名/ID/身份证/住址/医生名），去标识后患者身份 token **零残留**，设备/临床/日期按策略保留。
 CI：`tests.yml` 在 ubuntu 无头跑 pytest；`build-windows.yml` 在 windows 打 exe。
@@ -174,6 +174,29 @@ CI：`tests.yml` 在 ubuntu 无头跑 pytest；`build-windows.yml` 在 windows �
 > Codex：*"当前工具更接近'带明文对照表的假名化/有限数据集'，不满足对外强匿名分享。"*
 
 **回应**：这与本工具的**设计定位一致**——用户明确要求"保留明文 CSV 对照表"(可逆假名化)，用于科研内部回溯，而非完全不可逆的对外公开。在该定位下，已落实 Codex 全部高危中可操作项，并把"对照表/报告"与"可分享数据"物理分离、加上启发式残留校验兜底。若未来需要"对外强匿名"，DESIGN 已预留 date-shift、随机伪 ID、OCR 涂黑等扩展点。
+
+### 8.4 第二轮【全面】审核与修正（v0.2.0）
+
+用户要求对整个程序（不只去标识）再审一遍。Codex 提 **6 高 / 13 中 / 6 低**，逐条分诊后已修：
+
+| 严重度 | 问题 | 修复 |
+|---|---|---|
+| 高 | UI 只看 leaks，全失败也提示"通过"（诚实性 bug） | 引入 `RunReport.status()` **PASS/WARN/FAIL**；成功=零残留**且**零失败 |
+| 高 | 复跑同一输出目录混入旧文件 | 去标识输出非空则**拒绝运行** |
+| 高 | 输出在输入目录内→把输出当患者 | 禁止输入/输出相同或**互相嵌套**；**先扫描后建目录** |
+| 高 | 每患者只读 1 个 DICOM 采集 secrets | 改为**每个序列目录各读一个头**(stop_before_pixels)，并收 AccessionNumber |
+| 高 | 检查号若在报告正文不被替换 | `AccessionNumber/PatientUID` 纳入 harvest secrets |
+| 中 | 坏 DICOM 被 verify 当成"安全" | verify 读失败 → 标为**"无法验证"**计入 FAIL |
+| 中 | 输出重名 SOPUID 静默覆盖 | `_unique_path` 重名追加 `_1/_2` |
+| 中 | 单引号/大写 encoding 声明不识别 | `_decode` 兼容单双引号、大小写 |
+| 中 | scanner 漏 `.IMA` | DICOM 扩展加 `.ima` |
+| 中 | DICOM 缺保险类 tag | 补 `PatientInsurancePlanCodeSequence` 等 |
+| 中 | CI 不在 Windows 跑 / 发版前不测 | tests 加 **windows-latest 矩阵**；build 发版**前先 pytest + 导入冒烟** |
+| 低 | redact 保存不查返回值 / UID 边界 / 报告无总体状态 | 全部修正 |
+
+**记为已知局限**（设计取舍或低收益）：XML 用文本正则而非 DOM parser（有意，防破坏 .NET DataSet 格式，已多轮真实数据零残留验证）；单字中文姓名不进全文替换（降阈值会误伤，极罕见）；海量日志/单文件预览在 GUI 线程（已限行，单文件预览快，非阻塞痛点）；像素 OCR（超出本版范围，烧录已标红人工复核）。
+
+**复验**：**64 项测试全过**（新增 stale 输出、嵌套输出、PASS/WARN/FAIL、重名、单引号编码、无法验证、UID 边界等回归测试）；真实 2 患者端到端 **状态=PASS、独立暴力扫描零残留、设备保留、医院去除**。
 
 ---
 

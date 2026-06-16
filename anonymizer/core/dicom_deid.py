@@ -52,6 +52,7 @@ BLANK_KEYWORDS = {
     "AdmissionID", "IssuerOfAdmissionID", "ServiceEpisodeID",
     "PerformedProcedureStepID", "RequestedProcedureID", "ScheduledProcedureStepID",
     "CurrentPatientLocation", "PatientTransportArrangements",
+    "PatientInsurancePlanCodeSequence", "InsurancePlanIdentification",
     "OrderCallbackPhoneNumber", "OrderEnteredBy", "OrderEntererLocation",
     "NamesOfIntendedRecipientsOfResults", "HumanPerformersName",
     "HumanPerformersOrganization", "VerifyingObserverName", "ContentCreatorName",
@@ -96,7 +97,9 @@ def _iter_datasets(ds):
 
 
 def _should_remap_uid(value: str) -> bool:
-    return bool(value) and not str(value).startswith(DICOM_STD_ROOT)
+    v = str(value)
+    # 标准根判断要带边界，避免 1.2.840.100080000 这类厂商 UID 被误判为标准
+    return bool(value) and not (v == DICOM_STD_ROOT or v.startswith(DICOM_STD_ROOT + "."))
 
 
 def _detect_burned_in(ds) -> tuple[bool, str]:

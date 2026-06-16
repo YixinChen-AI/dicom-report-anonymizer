@@ -4,6 +4,12 @@ from anonymizer.core.verify import verify_text, verify_dicom_file, verify_output
 from tests._synth import make_dicom_file
 
 
+def test_verify_dicom_unverifiable_on_read_error(tmp_path):
+    # 读不了的 DICOM 不能当作"安全"，应标为无法验证
+    res = verify_dicom_file(tmp_path, [])      # 传目录 → 读取必失败
+    assert res and "无法验证" in res[0][1]
+
+
 def test_verify_text_finds_token():
     leaks = verify_text("报告：患者万学中正常", ["万学中", "李四"])
     tokens = [t for t, _ in leaks]

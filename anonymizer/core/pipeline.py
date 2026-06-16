@@ -45,6 +45,18 @@ def _format_changes(rel: str, changes, extra: str = "") -> str:
     return "\n".join(lines)
 
 
+def _unique_path(p: Path) -> Path:
+    """目标已存在则追加 _1/_2…，避免重名 SOPInstanceUID 静默覆盖。"""
+    if not p.exists():
+        return p
+    i = 1
+    while True:
+        cand = p.with_name(f"{p.stem}_{i}{p.suffix}")
+        if not cand.exists():
+            return cand
+        i += 1
+
+
 def _sanitize_relpath(rel: Path, secrets) -> Path:
     toks = sorted((s for s in secrets if s and len(s) >= 2), key=len, reverse=True)
     parts = []
@@ -73,26 +85,40 @@ def _build_crosswalk(scan) -> Crosswalk:
                 cw.add_identifiers(pg.folder_name, names=ident["names"], ids=ident["ids"])
             except Exception:
                 pass
-        if pg.dicom:
+        # 每个序列目录读 1 个 DICOM 头（只读元数据，便宜），采集姓名/ID/检查号到 secrets
+        seen_dirs = set()
+        for d in pg.dicom:
+            if d.parent in seen_dirs:
+                continue
+            seen_dirs.add(d.parent)
             try:
-                ds = pydicom.dcmread(pg.dicom[0], force=True)
+                ds = pydicom.dcmread(d, stop_before_pixels=True, force=True)
                 cw.add_identifiers(pg.folder_name,
                                    names=[str(ds.get("PatientName", ""))],
-                                   ids=[str(ds.get("PatientID", ""))])
+                                   ids=[str(ds.get("PatientID", "")),
+                                        str(ds.get("AccessionNumber", ""))])
             except Exception:
                 pass
     return cw
 
 
 def run_pipeline(input_root, output_root, *, progress=None, log=None, keep_dates=True) -> RunReport:
-    input_root = Path(input_root)
-    output_root = Path(output_root)
+    input_root = Path(input_root).resolve()
+    output_root = Path(output_root).resolve()
+    if (output_root == input_root or input_root in output_root.parents
+            or output_root in input_root.parents):
+        raise ValueError("输出目录不能与输入相同或互相嵌套，请另选一个空目录。")
+
+    scan = scanner.scan(input_root)   # 先扫描，避免把刚建的输出目录当成患者输入
+
     data_root = output_root / DATA_SUBDIR        # 可分享
     private_root = output_root / PRIVATE_SUBDIR   # 含 PHI，勿分享
+    if data_root.exists() and any(data_root.iterdir()):
+        raise ValueError(f"输出目录已有去标识结果（{DATA_SUBDIR} 非空）。"
+                         "请换一个空目录或先清空，避免与旧数据混淆。")
     data_root.mkdir(parents=True, exist_ok=True)
     private_root.mkdir(parents=True, exist_ok=True)
 
-    scan = scanner.scan(input_root)
     report = RunReport(input_root=str(input_root), output_root=str(data_root), started=_now())
     report.n_patients = len(scan.patients)
 
@@ -122,6 +148,7 @@ def run_pipeline(input_root, output_root, *, progress=None, log=None, keep_dates
                 new_name = str(res.dataset.get("SOPInstanceUID", f"{pseudo}_{i:05d}")) + ".dcm"
                 target = out_pdir / subdir / new_name
                 target.parent.mkdir(parents=True, exist_ok=True)
+                target = _unique_path(target)
                 res.dataset.save_as(target, enforce_file_format=True)
                 report.n_dicom += 1
                 if log:

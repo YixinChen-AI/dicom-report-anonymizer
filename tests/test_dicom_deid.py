@@ -137,6 +137,13 @@ def test_changes_diff_recorded():
     assert pn[2] == "Patient_0001"
 
 
+def test_should_remap_uid_boundary():
+    from anonymizer.core.dicom_deid import _should_remap_uid
+    assert _should_remap_uid("1.2.840.99999.1") is True      # 厂商 UID → 重映射
+    assert _should_remap_uid("1.2.840.10008.5.1.4") is False  # 标准 UID → 保留
+    assert _should_remap_uid("1.2.840.100080000.1") is True   # 非标准根(无边界) → 重映射
+
+
 def test_uid_mapper_random_salt():
     u1, u2 = UidMapper(), UidMapper()
     uid = "1.2.999.55"

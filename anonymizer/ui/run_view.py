@@ -143,21 +143,27 @@ class RunWidget(QWidget):
         self.btn_scan.setEnabled(True)
         self.btn_open_out.setEnabled(True)
         self.btn_report.setEnabled(True)
-        ok = not report.leaks
+        st = report.status()
         self._log("—— 完成 ——")
         self._log(f"患者 {report.n_patients}，DICOM {report.n_dicom}，XML {report.n_xml}，"
                   f"丢弃 PDF {report.n_pdf_dropped}、图片 {report.n_image_dropped}")
         self._log(f"可分享的去标识数据在「{DATA_SUBDIR}」；对照表/报告在「{PRIVATE_SUBDIR}」"
                   f"（含真实信息，切勿随数据一起分享）。")
+        if report.n_dicom_failed or report.n_xml_failed:
+            self._log(f"⚠ 处理失败：DICOM {report.n_dicom_failed}、XML {report.n_xml_failed}（见报告）。")
         if report.burned_in:
             self._log(f"⚠ {len(report.burned_in)} 个文件疑似烧录文字，请到「手动涂黑」复核。")
-        if ok:
-            self._log("✅ 隐私校验通过：输出未发现残留真实姓名/ID。")
-            QMessageBox.information(self, "完成", "去标识完成，隐私校验通过 ✅")
-        else:
-            self._log(f"🛑 隐私校验发现 {len(report.leaks)} 处疑似残留 PHI，请查看运行报告并人工复核！")
-            QMessageBox.warning(self, "需复核",
-                                f"发现 {len(report.leaks)} 处疑似残留 PHI，请查看运行报告。")
+        if st == "PASS":
+            self._log("✅ PASS：无残留、无失败。")
+            QMessageBox.information(self, "完成", "去标识完成 ✅ PASS（无残留、无失败）")
+        elif st == "WARN":
+            self._log("⚠ WARN：有文件失败或疑似烧录，未发现残留 PHI，请看报告。")
+            QMessageBox.warning(self, "完成（需注意）",
+                                "完成，但有文件处理失败或疑似烧录，请查看运行报告。")
+        else:  # FAIL
+            self._log(f"🛑 FAIL：{len(report.leaks)} 处残留/无法验证，务必人工复核！")
+            QMessageBox.critical(self, "需复核",
+                                 f"发现 {len(report.leaks)} 处残留 PHI 或无法验证的文件，请查看运行报告。")
 
     def _on_failed(self, tb):
         self.btn_run.setEnabled(True)

@@ -32,12 +32,26 @@ class RunReport:
     n_xml_failed: int = 0
     failures: list = field(default_factory=list)        # [Failure]
     burned_in: list = field(default_factory=list)        # [BurnedInFlag]
-    leaks: list = field(default_factory=list)            # [verify.Leak]
+    leaks: list = field(default_factory=list)            # [verify.Leak]（含"无法验证"项）
+
+    def status(self) -> str:
+        """整体状态：FAIL=残留PHI/无法验证；WARN=有失败或疑似烧录；PASS=干净。"""
+        if self.leaks:
+            return "FAIL"
+        if self.n_dicom_failed or self.n_xml_failed or self.burned_in:
+            return "WARN"
+        return "PASS"
 
     def to_markdown(self) -> str:
-        ok = not self.leaks
+        st = self.status()
+        ok = st == "PASS"
+        banner = {"PASS": "✅ PASS — 校验通过，未发现残留/失败",
+                  "WARN": "⚠️ WARN — 有文件处理失败或疑似烧录，请看下方",
+                  "FAIL": "🛑 FAIL — 发现残留 PHI 或无法验证的文件，务必人工复核"}[st]
         lines = [
             "# 去标识运行报告",
+            "",
+            f"**状态：{banner}**",
             "",
             f"- 输入：`{self.input_root}`",
             f"- 输出：`{self.output_root}`",

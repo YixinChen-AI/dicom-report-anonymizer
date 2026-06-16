@@ -39,10 +39,10 @@ BLANK_TAGS = [
 # harvest：作为真实姓名 token 收集
 HARVEST_NAME_TAGS = ["PatientName", "PatientNameC", "PatientFN", "PatientFNC",
                      "PatientSN", "PatientSNC"]
-# harvest：作为真实 ID token 收集
+# harvest：作为真实 ID token 收集（含会被清空、但可能在正文复现的检查标识）
 HARVEST_ID_TAGS = ["PatientID", "OutPatientNo", "InPatientNo", "CaseNO",
                    "StudyInstanceUID", "patient_idcard", "Patient_tel",
-                   "patient_cellphone"]
+                   "patient_cellphone", "AccessionNumber", "PatientUID"]
 # harvest：被清空的人名/地址也收进 secrets（正文同值替换 + verify 覆盖）。
 # 只收「姓名/地址」这类会在正文复现的，不收工号/费用/床号（避免误替换数字/通用词）。
 HARVEST_TEXT_TAGS = ["Patient_Address", "ReportingPhysician", "ReferringPhysician",
@@ -63,7 +63,7 @@ class XmlDeidResult:
 def _decode(data) -> tuple[str, str]:
     if isinstance(data, str):
         return data, "utf-8"
-    m = re.search(rb'encoding="([\w\-]+)"', data[:200])
+    m = re.search(rb'encoding=["\']([\w\-]+)["\']', data[:200], re.IGNORECASE)
     enc = m.group(1).decode("ascii") if m else "utf-8"
     for codec in (enc, "gbk", "utf-8", "latin-1"):
         try:

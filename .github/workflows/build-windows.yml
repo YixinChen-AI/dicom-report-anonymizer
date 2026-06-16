@@ -18,6 +18,14 @@ jobs:
           python-version: "3.11"
       - name: 安装依赖
         run: pip install -r requirements-dev.txt
+      - name: 发版前先跑测试（无头 Qt）
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: pytest -q
+      - name: 导入冒烟
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -c "import anonymizer.app, anonymizer.core.pipeline; print('import OK')"
       - name: PyInstaller 打包单文件 exe
         run: pyinstaller --onefile --windowed --name DicomReportAnonymizer --paths . anonymizer/__main__.py
       - name: 上传 exe 构件

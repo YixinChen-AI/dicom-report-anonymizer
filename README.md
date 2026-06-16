@@ -14,12 +14,25 @@
 - **手动涂黑**：对含烧录文字的图像/截图，手动拖黑框遮挡 PHI 后另存。
 - **运行报告**：处理数量、去掉的 PHI、需人工复核的标红项一目了然。
 
-## 快速使用（Windows）
+## 一行命令安装/运行
 
-1. 到 [Releases](../../releases) 下载最新的 `DicomReportAnonymizer.exe`（由 GitHub Actions 自动构建）。
-2. 双击运行，选择**输入文件夹**（解压好的数据集，**子目录为各患者**的那一层）和**输出文件夹**。
-3. 「扫描预览」确认患者数 → 「开始去标识」，完成后在「前后对照」里抽查确认。
-4. 输出分两个子目录：`去标识输出_可分享/`（可对外分享）和 `_对照表与报告_请勿分享/`（含 `crosswalk.csv` 回溯钥匙，**切勿随数据分享**）。
+**Windows**（PowerShell，下载并运行，无需装 Python）：
+```powershell
+iwr https://github.com/YixinChen-AI/dicom-report-anonymizer/releases/latest/download/DicomReportAnonymizer.exe -OutFile DicomReportAnonymizer.exe; .\DicomReportAnonymizer.exe
+```
+或直接到 [Releases](../../releases) 双击下载的 `DicomReportAnonymizer.exe`。
+
+**macOS / Linux**（从源码克隆+装依赖+启动，需 Python 3.9–3.13）：
+```bash
+git clone https://github.com/YixinChen-AI/dicom-report-anonymizer.git && cd dicom-report-anonymizer && python3 -m venv .venv && .venv/bin/pip install -q -r requirements.txt && .venv/bin/python -m anonymizer
+```
+> 若系统默认 `python3` 是 3.14+（PySide6 暂无对应轮子），把上面 `python3` 换成 `python3.11`/`python3.12`/`python3.13`。
+
+## 使用步骤
+
+1. 选择**输入文件夹**（解压好的数据集，**子目录为各患者**的那一层）和**输出文件夹**（空目录）。
+2. 「扫描预览」确认患者数 → 「开始去标识」，处理时逐文件流式显示改了哪些字段；完成后在「前后对照」抽查。
+3. 输出分两个子目录：`去标识输出_可分享/`（可对外分享）和 `_对照表与报告_请勿分享/`（含 `crosswalk.csv` 回溯钥匙，**切勿随数据分享**）。
 
 ## 从源码运行 / 开发
 

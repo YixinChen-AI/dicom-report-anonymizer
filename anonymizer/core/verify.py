@@ -58,8 +58,8 @@ def verify_dicom_file(path, secrets) -> list:
     toks = _meaningful(secrets)
     try:
         ds = pydicom.dcmread(path, force=True)
-    except Exception:
-        return found
+    except Exception as e:  # noqa: BLE001 — 坏文件不能当作安全，标为无法验证
+        return [("<读取失败>", f"<无法验证: {type(e).__name__}>")]
     for elem in ds.iterall():
         if elem.VR in ("OB", "OW", "OF", "OD", "UN", "SQ"):
             continue

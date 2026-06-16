@@ -1,7 +1,29 @@
 import pydicom
+import pytest
 
-from anonymizer.core.pipeline import DATA_SUBDIR, PRIVATE_SUBDIR, run_pipeline
+from anonymizer.core.pipeline import (DATA_SUBDIR, PRIVATE_SUBDIR, _unique_path,
+                                      run_pipeline)
 from tests._synth import write_synth_dataset
+
+
+def test_unique_path(tmp_path):
+    p = tmp_path / "a.dcm"
+    p.write_text("x")
+    assert _unique_path(p).name == "a_1.dcm"
+
+
+def test_pipeline_rejects_output_inside_input(tmp_path):
+    src = write_synth_dataset(tmp_path / "ds")
+    with pytest.raises(ValueError):
+        run_pipeline(src, src / "out")        # 输出在输入目录内
+
+
+def test_pipeline_rejects_stale_output(tmp_path):
+    src = write_synth_dataset(tmp_path / "ds")
+    out = tmp_path / "out"
+    run_pipeline(src, out)                     # 第一次 OK
+    with pytest.raises(ValueError):
+        run_pipeline(src, out)                # 第二次：去标识输出非空 → 拒绝
 
 
 def test_pipeline_end_to_end(tmp_path):

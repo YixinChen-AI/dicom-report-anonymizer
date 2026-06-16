@@ -42,11 +42,11 @@ class ImageCanvas(QLabel):
         self._rects = []
         self._refresh()
 
-    def save(self, path):
+    def save(self, path) -> bool:
         if self._image is None:
-            return
+            return False
         out = self._render(preview=False)
-        out.save(str(path))
+        return bool(out.save(str(path)))
 
     def _render(self, preview: bool) -> QImage:
         img = self._image.copy()
@@ -129,5 +129,7 @@ class RedactWidget(QWidget):
         if path:
             if not path.lower().endswith(".png"):
                 path = str(Path(path).with_suffix(".png"))
-            self.canvas.save(path)
-            QMessageBox.information(self, "已保存", f"已保存到：\n{path}")
+            if self.canvas.save(path):
+                QMessageBox.information(self, "已保存", f"已保存到：\n{path}")
+            else:
+                QMessageBox.warning(self, "保存失败", "无法写入该文件，请换个位置重试。")

@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-DICOM_EXT = {".dcm"}
+DICOM_EXT = {".dcm", ".ima"}   # .ima = Siemens DICOM 常见扩展
 XML_EXT = {".xml"}
 PDF_EXT = {".pdf"}
 IMAGE_EXT = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}

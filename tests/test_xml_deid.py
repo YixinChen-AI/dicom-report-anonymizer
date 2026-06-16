@@ -118,6 +118,15 @@ def test_harvest_collects_doctor_and_address():
     assert "张医生" in ident["names"]
 
 
+def test_single_quote_encoding_decl():
+    # 单引号 + 大写编码声明也能正确解码/回写
+    xml = ("<?xml version='1.0' encoding='GB2312'?><PATIENT>"
+           "<PatientNameC>测试名</PatientNameC></PATIENT>")
+    res = deidentify_xml(xml.encode("gb2312"), "Patient_0001")
+    assert "测试名" not in res.after_text
+    assert res.output_bytes.decode("gb2312")
+
+
 def test_changes_recorded():
     res = deidentify_xml(_bytes(), "Patient_0001", secrets=[])
     labels = {c[0] for c in res.changes}

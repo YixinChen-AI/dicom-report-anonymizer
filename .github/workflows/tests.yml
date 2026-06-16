@@ -7,13 +7,18 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: 安装 Qt 运行所需系统库
+      - name: 安装 Qt 运行所需系统库（仅 Linux）
+        if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libegl1 libxkbcommon0 libgl1
       - name: 安装依赖
         run: pip install -r requirements-dev.txt
