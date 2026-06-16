@@ -104,6 +104,23 @@ def test_next_emits_scanned_root_not_edit(qapp, tmp_path):
     assert captured["inp"] == str(tmp_path / "scanned")
 
 
+def test_result_private_dir_path(qapp, tmp_path):
+    """#3：私密报告路径应为 output_root/PRIVATE_SUBDIR，不是其上级目录。"""
+    from anonymizer.core.pipeline import PRIVATE_SUBDIR
+    from anonymizer.ui.result_page import ResultPage
+    page = ResultPage(on_restart=lambda: None)
+    out = tmp_path / "out"
+    page._output = str(out)
+    assert page._private_dir() == str(out / PRIVATE_SUBDIR)
+
+
+def test_main_window_close_no_worker(qapp):
+    """#6：无后台线程时关窗不报错、不阻塞。"""
+    from anonymizer.ui.main_window import MainWindow
+    win = MainWindow()
+    win.close()   # scan/run worker 均为 None → 直接关闭
+
+
 def test_review_dicom(qapp, tmp_path):
     from anonymizer.ui.review_view import ReviewWidget
     p = make_dicom_file(tmp_path / "a.dcm", patient_name="Wan^XueZhong", patient_id="P13509")

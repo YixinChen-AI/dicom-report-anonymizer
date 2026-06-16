@@ -1,8 +1,8 @@
 """主窗口：三步向导 —— ① 扫描·审核策略 → ② 执行匿名化 → ③ 可信结果。"""
 from __future__ import annotations
 
-from PySide6.QtWidgets import (QLabel, QMainWindow, QStackedWidget, QVBoxLayout,
-                               QWidget)
+from PySide6.QtWidgets import (QLabel, QMainWindow, QMessageBox, QStackedWidget,
+                               QVBoxLayout, QWidget)
 
 from anonymizer.ui.result_page import ResultPage
 from anonymizer.ui.run_page import RunPage
@@ -60,3 +60,19 @@ class MainWindow(QMainWindow):
         self.result_page.show_report(report, self.run_page._input,
                                      self.run_page._output, self.run_page._policy)
         self._goto(2)
+
+    def closeEvent(self, e):
+        # 后台线程仍在跑时直接销毁会 "QThread: Destroyed while running" 甚至崩溃；
+        # 不能 terminate(去标识写一半会留残文件)，只能等当前任务结束。
+        running = [w for w in (self.scan_page._worker, self.run_page._worker)
+                   if w is not None and w.isRunning()]
+        if running:
+            if QMessageBox.question(
+                    self, "仍在处理",
+                    "扫描/匿名化尚未完成。退出将等待当前任务结束，确定退出吗？",
+                    QMessageBox.Yes | QMessageBox.No) != QMessageBox.Yes:
+                e.ignore()
+                return
+            for w in running:
+                w.wait()
+        super().closeEvent(e)

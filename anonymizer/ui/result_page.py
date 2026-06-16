@@ -41,7 +41,7 @@ class ResultPage(QWidget):
         b_redact = QPushButton("手动涂黑报告截图")
         b_restart = QPushButton("↺ 重新开始")
         b_out.clicked.connect(lambda: _open(self._output))
-        b_priv.clicked.connect(lambda: _open(str(Path(self._output).parent / PRIVATE_SUBDIR)))
+        b_priv.clicked.connect(lambda: _open(self._private_dir()))
         b_redact.clicked.connect(self._open_redact)
         b_restart.clicked.connect(on_restart)
         for b in (b_out, b_priv, b_redact):
@@ -77,6 +77,10 @@ class ResultPage(QWidget):
             for lk in report.leaks[:300]:
                 lines.append(f"  [{lk.kind}] {Path(lk.file).name}  token={lk.token}  {lk.detail}")
             self.residual.setPlainText("\n".join(lines))
+
+    def _private_dir(self) -> str:
+        # 私密报告/对照表在 output_root/PRIVATE_SUBDIR（与 pipeline 写入位置一致）
+        return str(Path(self._output) / PRIVATE_SUBDIR)
 
     def _open_redact(self):
         from anonymizer.ui.redact_view import RedactWidget
