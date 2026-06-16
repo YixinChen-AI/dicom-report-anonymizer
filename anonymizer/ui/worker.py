@@ -14,11 +14,12 @@ class PipelineWorker(QThread):
     done = Signal(object)              # RunReport
     failed = Signal(str)
 
-    def __init__(self, input_root, output_root, keep_dates=True):
+    def __init__(self, input_root, output_root, keep_dates=True, policy=None):
         super().__init__()
         self._input = input_root
         self._output = output_root
         self._keep_dates = keep_dates
+        self._policy = policy
 
     def run(self):
         try:
@@ -27,6 +28,7 @@ class PipelineWorker(QThread):
                 progress=lambda d, t, m: self.progress.emit(d, t, m),
                 log=lambda s: self.logline.emit(s),
                 keep_dates=self._keep_dates,
+                policy=self._policy,
             )
             self.done.emit(report)
         except Exception:

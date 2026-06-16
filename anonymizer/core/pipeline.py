@@ -102,7 +102,8 @@ def _build_crosswalk(scan) -> Crosswalk:
     return cw
 
 
-def run_pipeline(input_root, output_root, *, progress=None, log=None, keep_dates=True) -> RunReport:
+def run_pipeline(input_root, output_root, *, progress=None, log=None, keep_dates=True,
+                 policy=None) -> RunReport:
     input_root = Path(input_root).resolve()
     output_root = Path(output_root).resolve()
     if (output_root == input_root or input_root in output_root.parents
@@ -142,8 +143,8 @@ def run_pipeline(input_root, output_root, *, progress=None, log=None, keep_dates
         for i, dcm in enumerate(pg.dicom):
             try:
                 ds = pydicom.dcmread(dcm, force=True)
-                res = deidentify_dataset(ds, pseudo, mapper,
-                                         keep_dates=keep_dates, extra_secrets=secrets)
+                res = deidentify_dataset(ds, pseudo, mapper, keep_dates=keep_dates,
+                                         extra_secrets=secrets, policy=policy)
                 subdir = _sanitize_relpath(dcm.relative_to(pg.root).parent, secrets)
                 new_name = str(res.dataset.get("SOPInstanceUID", f"{pseudo}_{i:05d}")) + ".dcm"
                 target = out_pdir / subdir / new_name
@@ -164,7 +165,7 @@ def run_pipeline(input_root, output_root, *, progress=None, log=None, keep_dates
 
         for j, x in enumerate(pg.xml):
             try:
-                res = deidentify_xml(x.read_bytes(), pseudo, secrets=secrets)
+                res = deidentify_xml(x.read_bytes(), pseudo, secrets=secrets, policy=policy)
                 target = out_pdir / f"{pseudo}_{j}.xml"
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(res.output_bytes)

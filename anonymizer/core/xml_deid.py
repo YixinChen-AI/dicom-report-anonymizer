@@ -102,7 +102,9 @@ def harvest_identifiers(data) -> dict:
     return {"names": names, "ids": ids}
 
 
-def deidentify_xml(data, pseudo_id: str, secrets=()) -> XmlDeidResult:
+def deidentify_xml(data, pseudo_id: str, secrets=(), policy=None) -> XmlDeidResult:
+    from .policy import Policy
+    policy = policy or Policy()
     text, enc = _decode(data)
     before = text
     changes: list = []
@@ -120,8 +122,11 @@ def deidentify_xml(data, pseudo_id: str, secrets=()) -> XmlDeidResult:
         text = pat.sub(_sub, text)
 
     for tag in REPLACE_WITH_PSEUDO:
-        scrub(tag, pseudo_id)
-    for tag in BLANK_TAGS:
+        if not policy.forces_keep(tag):
+            scrub(tag, pseudo_id)
+    blank_tags = [t for t in BLANK_TAGS if not policy.forces_keep(t)]
+    blank_tags += [t for t in policy.extra_remove_xml if not policy.forces_keep(t)]
+    for tag in blank_tags:
         scrub(tag, "")
 
     # 兜底：全文精确替换已知真实 token（长 token 先替换）

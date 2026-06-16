@@ -1,4 +1,5 @@
 """xml_deid 测试（TDD）。合成 .NET DataSet 风格 XML（gb2312），非真实数据。"""
+from anonymizer.core.policy import Policy
 from anonymizer.core.xml_deid import deidentify_xml, harvest_identifiers
 
 SYNTH_XML = """<?xml version="1.0" encoding="gb2312"?>
@@ -116,6 +117,18 @@ def test_harvest_collects_doctor_and_address():
     ident = harvest_identifiers(xml.encode("gb2312"))
     assert "北京海淀" in ident["names"]
     assert "张医生" in ident["names"]
+
+
+def test_policy_extra_remove_xml():
+    res = deidentify_xml(_bytes(), "Patient_0001",
+                         policy=Policy(extra_remove_xml={"PatientAge"}))
+    assert "<PatientAge></PatientAge>" in res.after_text     # 默认保留 → 用户额外删
+
+
+def test_policy_keep_xml():
+    res = deidentify_xml(_bytes(), "Patient_0001",
+                         policy=Policy(keep={"PatientBirthday"}))
+    assert "<PatientBirthday>19500101</PatientBirthday>" in res.after_text  # 默认删 → 强制保留
 
 
 def test_single_quote_encoding_decl():

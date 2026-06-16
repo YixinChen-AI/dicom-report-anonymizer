@@ -118,7 +118,9 @@ def _detect_burned_in(ds) -> tuple[bool, str]:
 
 def deidentify_dataset(ds, pseudo_id: str, uid_mapper: UidMapper, *,
                        remove_private: bool = True, keep_dates: bool = True,
-                       extra_secrets=None) -> DeidResult:
+                       extra_secrets=None, policy=None) -> DeidResult:
+    from .policy import Policy
+    policy = policy or Policy()
     res = DeidResult(dataset=ds)
     extra_secrets = sorted(extra_secrets or [], key=len, reverse=True)  # 长 token 先替换
 
@@ -169,16 +171,17 @@ def deidentify_dataset(ds, pseudo_id: str, uid_mapper: UidMapper, *,
                 _record(res, "PatientID", elem.value, pseudo_id)
                 elem.value = pseudo_id
                 continue
-            # PHI 字段清空
-            if keyword in BLANK_KEYWORDS:
+            # PHI 字段清空（内置默认表 + 用户额外标签；keep 覆盖为强制保留）
+            if ((keyword in BLANK_KEYWORDS or policy.adds_remove_dicom(keyword))
+                    and not policy.forces_keep(keyword)):
                 if elem.VR == "SQ":
                     to_delete.append(tag)
                 else:
                     _record(res, keyword, elem.value, "")
                     elem.value = ""
                 continue
-            # 其余 PersonName 一律清空
-            if elem.VR == "PN":
+            # 其余 PersonName 一律清空（除非用户强制保留）
+            if elem.VR == "PN" and not policy.forces_keep(keyword):
                 _record(res, keyword or str(tag), elem.value, "")
                 elem.value = ""
                 continue

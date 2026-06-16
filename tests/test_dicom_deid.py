@@ -173,6 +173,17 @@ def test_encapsulated_document_flagged():
     assert res.burned_in_suspected is True
 
 
+def test_policy_extra_remove_and_keep():
+    from anonymizer.core.policy import Policy
+    ds = _make_ds()
+    ds.ProtocolName = "PET Brain"     # 默认保留的科研字段
+    res = deidentify_dataset(ds, "Patient_0001", UidMapper(),
+                             policy=Policy(extra_remove_dicom={"ProtocolName"},
+                                           keep={"AccessionNumber"}))
+    assert res.dataset.ProtocolName == ""               # 用户额外指定 → 清空
+    assert res.dataset.AccessionNumber == "ACC123456"   # 用户强制保留(默认本会清)
+
+
 def test_idempotent_no_phi_left():
     """去标识后再扫一遍，原始姓名/ID 不应出现在任何标签值里。"""
     ds = _make_ds()

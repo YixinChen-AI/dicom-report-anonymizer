@@ -1,33 +1,18 @@
 <claude-mem-context>
 # Memory Context
 
-# [匿名化小工具] recent context, 2026-06-15 11:02pm GMT+8
+# [匿名化小工具] recent context, 2026-06-16 11:55am GMT+8
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (7,622t read) | 523,942t work | 99% savings
+Stats: 50 obs (8,639t read) | 752,535t work | 99% savings
 
 ### Jun 15, 2026
 S6567 DICOM + XML 报告匿名化 Windows 桌面工具 — 从零构建、Codex 对抗性安全审核、公开 GitHub repo + v0.1.0 发布 (Jun 15 at 9:06 PM)
-8709 9:23p ✅ REPORT.md + README.md 使用说明更新 — 双分区输出目录说明同步
-8710 " ✅ DESIGN.md §6 数据流更新 — 反映双分区输出目录架构
-8711 9:24p ✅ DICOM 匿名化工具文档修订提交并推送到 GitHub main
-8712 " 🟣 DICOM 匿名化工具 v0.1.0 正式 tag 发布，GitHub Actions build-windows 自动触发
-8713 9:25p ✅ 本地真实 PHI 临时文件清理完成
-8714 9:26p ✅ DICOM 匿名化工具项目总结写入 claude-mem 持久记忆
-8715 9:27p ✅ DICOM 匿名化工具项目条目写入 MEMORY.md 索引
-8716 9:28p 🟣 v0.1.0 Windows exe 构建成功发布 — DicomReportAnonymizer.exe 63.4MB 上线
 S6568 DICOM 匿名化小工具 — 用户询问如何测试工具 (Jun 15 at 9:28 PM)
 S6575 DICOM 匿名化小工具 — 为 FDG 脑数据集构建带 Windows UI 的去标识工具，含 Codex 参与审核，公开 GitHub Repo 发布，并提供真实 PHI 测试样本验证 (Jun 15 at 9:37 PM)
-8717 9:37p 🔵 DICOM 匿名化工具 — 真实数据抽样脚本确认数据路径
-8718 9:39p 🔵 DICOM 匿名化工具 — 真实测试样本提取完成，发现患者无 DICOM 边界情况
-8722 9:40p 🔴 测试样本提取脚本修复 — 改为只选有 DICOM 文件的患者
-8724 9:43p 🔵 DICOM 匿名化测试样本二次提取成功 — 两例均含完整 DICOM
-8725 9:47p 🔵 真实 DICOM 测试样本成功下载到本地 Mac — 26MB / 37 文件
-8726 9:48p 🔵 DICOM 匿名化 pipeline 在真实数据上端到端运行成功
-8727 9:49p 🔵 Pipeline 真实数据测试发现两个严重问题：DICOM 全部失败 + XML PHI 泄漏
 8733 9:52p 🔵 DICOM 全量失败根因确认 — Philips iDose 私有标签 (01F1,1026) VR 长度非法
 8734 " 🔴 DICOM 解析失败修复 — 启用 pydicom 宽容模式跳过非法私有标签
 8735 " 🔴 verify.py PHI 正则假阳性修复 — 边界扩展为字母数字均不允许
@@ -70,20 +55,21 @@ S6608 DICOM 匿名化工具 — Mac 端到端验证 + 变更日志去重优化 +
 S6612 DICOM 匿名化工具 — 项目立项需求确认 (Jun 15 at 10:58 PM)
 8814 10:59p ⚖️ DICOM 匿名化工具 — 项目立项需求确认
 S6614 DICOM 匿名化工具 v0.1.3 发布确认 — Windows exe 构建成功，变更日志去重修复已上线 (Jun 15 at 11:00 PM)
-**Investigated**: 通过 gh CLI 验证 GitHub Release v0.1.3 的资产文件，确认 DicomReportAnonymizer.exe（约 63 MB）已正确上传至 YixinChen-AI/dicom-report-anonymizer repo。
+8817 11:02p ⚖️ DICOM 匿名化工具 — 全面代码审核任务定义与设计决策规约
+8818 11:03p 🔵 DICOM 匿名化工具 — 全面代码审核请求：架构与审核范围确认
+8821 11:07p 🔵 DICOM 匿名化工具 — 全面代码审核启动，有意设计决策文档化
+8822 11:09p ⚖️ DICOM 匿名化工具 — 全面 Codex 独立审核任务启动
+8826 11:11p 🔵 DICOM 匿名化工具 Codex 全面审核 — 6 高危 + 12 中危 + 6 低危问题清单
+8827 11:12p ⚖️ DICOM 匿名化工具 — Codex 审核后拆分三条修复任务
+8828 " 🔴 report.py 新增 status() 三态 + to_markdown banner — 修复"失败也显示通过"缺陷
+8831 11:14p 🔴 run_view.py _on_done — 改用三态 status() 替代二值 leaks 检查
+8832 11:15p 🔴 verify.py verify_dicom_file — 坏 DICOM 改为标"无法验证"而非当作安全
+8833 11:16p 🔴 pipeline.py run_pipeline — 三项安全修复：嵌套检测+先扫描后建目录+非空拒绝
+8835 " 🔴 pipeline.py 新增 _unique_path() — 修复重复 SOPInstanceUID 静默覆盖缺陷
+8836 11:17p 🔴 pipeline.py _build_crosswalk — 按序列目录读多个 DICOM 头 + 采集 AccessionNumber
+8837 11:18p 🔴 xml_deid.py HARVEST_ID_TAGS — 新增 AccessionNumber/PatientUID 到 XML harvest 列表
+8838 " 🔴 xml_deid.py _decode + dicom_deid.py _should_remap_uid — 两处边界 bug 修复
+8839 " 🔴 dicom_deid.py BLANK_KEYWORDS — 补充保险相关 DICOM 标准标签
 
-**Learned**: v0.1.3 Windows exe 已通过 GitHub Actions CI 构建完成并发布，Release URL 为 https://github.com/YixinChen-AI/dicom-report-anonymizer/releases/tag/v0.1.3，文件大小 66,474,225 bytes（~63 MB），构建管道全程自动化无需手动干预。
-
-**Completed**: 1. dicom-report-anonymizer 完整工具开发完成：核心 dicom_deid.py + Windows UI（preview.py + main_window.py）
-    2. 字段策略按用户逐项确认：患者身份/医生/病区/保险去除，StationName/DeviceSerialNumber/序列/临床/日期保留
-    3. 54 pytest 全绿，含真实北京医院 PET-CT 2 患者端到端验证（n_failed=0, leaks=0）
-    4. 变更日志去重修复（v0.1.3）：XML 中同一 (label, before, after) 三元组折叠为单行 + ×N 后缀，日志从 ~120 行压缩到 ~33 行
-    5. Codex 独立审核通过（Philips CT 脏私有标签 bug 修复已纳入）
-    6. GitHub Actions Windows build CI 构建成功，DicomReportAnonymizer.exe 已发布至 v0.1.3 Release
-    7. 公开 Repo：YixinChen-AI/dicom-report-anonymizer，v0.1.1 / v0.1.2 / v0.1.3 三版均已发布
-
-**Next Steps**: 等待用户在 Windows 上下载 v0.1.3 exe，对真实数据集执行端到端测试，验证「失败 0 · 残留 PHI 0 · ✅ 隐私校验通过」。如有字段处理不符合预期，按用户反馈调整字段策略表后发布 v0.1.4。
-
-
-Access 524k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 753k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>
