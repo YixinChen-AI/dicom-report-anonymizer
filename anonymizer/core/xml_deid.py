@@ -122,10 +122,10 @@ def deidentify_xml(data, pseudo_id: str, secrets=(), policy=None) -> XmlDeidResu
         text = pat.sub(_sub, text)
 
     for tag in REPLACE_WITH_PSEUDO:
-        if not policy.forces_keep(tag):
+        if not policy.forces_keep_xml(tag):
             scrub(tag, pseudo_id)
-    blank_tags = [t for t in BLANK_TAGS if not policy.forces_keep(t)]
-    blank_tags += [t for t in policy.extra_remove_xml if not policy.forces_keep(t)]
+    blank_tags = [t for t in BLANK_TAGS if not policy.forces_keep_xml(t)]
+    blank_tags += [t for t in policy.extra_remove_xml if not policy.forces_keep_xml(t)]
     for tag in blank_tags:
         scrub(tag, "")
 

@@ -57,9 +57,9 @@ def _dicom_action(keyword: str, vr: str, policy: Policy) -> str:
     if keyword in ("PatientName", "PatientID"):
         return "假名"
     if ((keyword in BLANK_KEYWORDS or policy.adds_remove_dicom(keyword))
-            and not policy.forces_keep(keyword)):
+            and not policy.forces_keep_dicom(keyword)):
         return "去除"
-    if vr == "PN" and not policy.forces_keep(keyword):
+    if vr == "PN" and not policy.forces_keep_dicom(keyword):
         return "去除"
     if vr == "UI":
         return "重映射"
@@ -71,10 +71,10 @@ def _dicom_action(keyword: str, vr: str, policy: Policy) -> str:
 
 
 def _xml_action(tag: str, policy: Policy) -> str:
-    if tag in REPLACE_WITH_PSEUDO and not policy.forces_keep(tag):
+    if tag in REPLACE_WITH_PSEUDO and not policy.forces_keep_xml(tag):
         return "假名"
     if ((tag in BLANK_TAGS or policy.adds_remove_xml(tag))
-            and not policy.forces_keep(tag)):
+            and not policy.forces_keep_xml(tag)):
         return "去除"
     if tag in XML_KEEP_HINTS:
         return "保留"

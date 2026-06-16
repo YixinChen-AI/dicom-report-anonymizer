@@ -43,7 +43,7 @@ class RunPage(QWidget):
     def setup(self, input_root, output_root, policy):
         self._input, self._output, self._policy = input_root, output_root, policy
         n_rm = len(policy.extra_remove_dicom) + len(policy.extra_remove_xml)
-        n_keep = len(policy.keep)
+        n_keep = len(policy.all_keep())
         self.summary.setText(
             f"输入：{input_root}<br>输出：{output_root}<br>"
             f"策略：默认规则 + 你额外去除 <b>{n_rm}</b> 个标签、强制保留 <b>{n_keep}</b> 个；"

@@ -45,11 +45,13 @@ class ScanReviewPage(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._worker = None
-        self._rows = []          # [{source, name, default, combo|None}]
+        self._rows = []          # [{source, name, default, combo|None, custom}]
+        self._scanned_root = None   # 已扫描并据此审核的输入根；防"扫A审A跑B"
         layout = QVBoxLayout(self)
 
         form = QFormLayout()
         self.in_edit = QLineEdit()
+        self.in_edit.textChanged.connect(self._on_input_changed)
         self.out_edit = QLineEdit()
         form.addRow("输入文件夹（子目录为各患者）", self._browse(self.in_edit, self._pick_in))
         form.addRow("输出文件夹（空目录）", self._browse(self.out_edit, self._pick_out))
@@ -114,6 +116,11 @@ class ScanReviewPage(QWidget):
         if d:
             self.out_edit.setText(d)
 
+    def _on_input_changed(self):
+        # 扫描后又改了输入 → 之前的审核作废，强制重扫，禁用下一步
+        if self._scanned_root and self.in_edit.text().strip() != self._scanned_root:
+            self.btn_next.setEnabled(False)
+
     # ---- 扫描 ----
     def _scan(self):
         root = self.in_edit.text().strip()
@@ -123,6 +130,7 @@ class ScanReviewPage(QWidget):
         self.btn_scan.setEnabled(False)
         self.btn_next.setEnabled(False)
         self.progress.show()
+        self._scanned_root = root
         self._worker = ScanWorker(root)
         self._worker.done.connect(self._on_scanned)
         self._worker.failed.connect(self._on_scan_failed)
@@ -161,7 +169,8 @@ class ScanReviewPage(QWidget):
         if editable:
             combo = QComboBox()
             combo.addItems(["去除", "保留"])
-            combo.setCurrentText("去除" if action == "去除" else "保留")
+            # 未知=可能藏 PHI → 默认「去除」(fail-closed)；用户审核样例后可改保留
+            combo.setCurrentText("保留" if action == "保留" else "去除")
             combo.currentTextChanged.connect(lambda _t, row=r: self._recolor(row))
             self.table.setCellWidget(r, 0, combo)
         else:
@@ -172,7 +181,8 @@ class ScanReviewPage(QWidget):
         for c, val in enumerate([source, name, kind, str(count), sample], start=1):
             it = QTableWidgetItem(val)
             self.table.setItem(r, c, it)
-        self._rows.append({"source": source, "name": name, "default": action, "combo": combo})
+        self._rows.append({"source": source, "name": name, "default": action,
+                           "combo": combo, "custom": custom})
         self._recolor(r)
 
     def _recolor(self, row):
@@ -198,27 +208,42 @@ class ScanReviewPage(QWidget):
 
     # ---- 产出 Policy ----
     def build_policy(self) -> Policy:
-        extra_dicom, extra_xml, keep = set(), set(), set()
+        extra_dicom, extra_xml = set(), set()
+        keep_dicom, keep_xml = set(), set()
         for rec in self._rows:
             if not rec["combo"]:
                 continue
             cur = rec["combo"].currentText()
             default, name, source = rec["default"], rec["name"], rec["source"]
-            if default == "去除" and cur == "保留":
-                keep.add(name)
-            elif default in ("保留", "未知") and cur == "去除":
-                (extra_dicom if source == "DICOM" else extra_xml).add(name)
+            # 默认规则本来就清空的 = 已发现且 default=="去除" 的非自定义行；
+            # 自定义行(用户手填)默认规则不认，必须靠 extra_remove 才会被清空。
+            removed_by_default = default == "去除" and not rec["custom"]
+            extra_set = extra_dicom if source == "DICOM" else extra_xml
+            keep_set = keep_dicom if source == "DICOM" else keep_xml
+            if cur == "保留" and removed_by_default:
+                keep_set.add(name)      # 覆盖默认清空 → 仅本来源强制保留
+            elif cur == "去除" and not removed_by_default:
+                extra_set.add(name)     # 默认不清空(保留/未知/自定义) → 额外去除
         return Policy(extra_remove_dicom=extra_dicom, extra_remove_xml=extra_xml,
-                      keep=keep, keep_dates=self.keep_dates.isChecked())
+                      keep_dicom=keep_dicom, keep_xml=keep_xml,
+                      keep_dates=self.keep_dates.isChecked())
 
     def _next(self):
+        # 必须先扫描，且当前输入与已扫描的一致（防"扫A审A跑B"）
+        if not self._scanned_root:
+            QMessageBox.warning(self, "提示", "请先扫描输入文件夹。")
+            return
+        if self.in_edit.text().strip() != self._scanned_root:
+            QMessageBox.warning(self, "输入已变更",
+                                "输入文件夹已改动，与已审核的扫描结果不一致。\n请重新扫描后再继续。")
+            return
         out = self.out_edit.text().strip()
         if not out:
             QMessageBox.warning(self, "提示", "请选择输出文件夹。")
             return
-        # 强 PHI 被改成保留 → 二次确认
+        # 强 PHI 被改成保留 → 二次确认（去除类被改保留；假名行不可编辑，不会进入此列表）
         kept_strong = [rec["name"] for rec in self._rows
-                       if rec["combo"] and rec["default"] in ("去除", "假名")
+                       if rec["combo"] and rec["default"] == "去除" and not rec["custom"]
                        and rec["combo"].currentText() == "保留"]
         if kept_strong:
             if QMessageBox.warning(
@@ -226,4 +251,4 @@ class ScanReviewPage(QWidget):
                     "你把这些本应去除的字段改成了保留：\n" + "、".join(kept_strong[:20])
                     + "\n确定要保留吗？", QMessageBox.Yes | QMessageBox.No) != QMessageBox.Yes:
                 return
-        self.proceed.emit(self.in_edit.text().strip(), out, self.build_policy())
+        self.proceed.emit(self._scanned_root, out, self.build_policy())

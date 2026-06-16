@@ -173,7 +173,7 @@ def deidentify_dataset(ds, pseudo_id: str, uid_mapper: UidMapper, *,
                 continue
             # PHI 字段清空（内置默认表 + 用户额外标签；keep 覆盖为强制保留）
             if ((keyword in BLANK_KEYWORDS or policy.adds_remove_dicom(keyword))
-                    and not policy.forces_keep(keyword)):
+                    and not policy.forces_keep_dicom(keyword)):
                 if elem.VR == "SQ":
                     to_delete.append(tag)
                 else:
@@ -181,7 +181,7 @@ def deidentify_dataset(ds, pseudo_id: str, uid_mapper: UidMapper, *,
                     elem.value = ""
                 continue
             # 其余 PersonName 一律清空（除非用户强制保留）
-            if elem.VR == "PN" and not policy.forces_keep(keyword):
+            if elem.VR == "PN" and not policy.forces_keep_dicom(keyword):
                 _record(res, keyword or str(tag), elem.value, "")
                 elem.value = ""
                 continue

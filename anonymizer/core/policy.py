@@ -11,7 +11,9 @@ from dataclasses import dataclass, field
 class Policy:
     extra_remove_dicom: set = field(default_factory=set)   # 额外清空的 DICOM keyword
     extra_remove_xml: set = field(default_factory=set)     # 额外清空的 XML 字段名
-    keep: set = field(default_factory=set)                 # 强制保留(覆盖默认清空)，DICOM/XML 通用
+    keep: set = field(default_factory=set)                 # 强制保留：DICOM/XML 通用（全局，向后兼容）
+    keep_dicom: set = field(default_factory=set)           # 仅 DICOM 强制保留
+    keep_xml: set = field(default_factory=set)             # 仅 XML 强制保留
     keep_dates: bool = True
 
     # ---- 查询（大小写不敏感）----
@@ -22,7 +24,20 @@ class Policy:
         return bool(tag) and tag.lower() in self._lc(self.extra_remove_xml)
 
     def forces_keep(self, name: str) -> bool:
+        """全局保留（向后兼容；DICOM/XML 通用）。"""
         return bool(name) and name.lower() in self._lc(self.keep)
+
+    def forces_keep_dicom(self, name: str) -> bool:
+        return self.forces_keep(name) or (
+            bool(name) and name.lower() in self._lc(self.keep_dicom))
+
+    def forces_keep_xml(self, name: str) -> bool:
+        return self.forces_keep(name) or (
+            bool(name) and name.lower() in self._lc(self.keep_xml))
+
+    def all_keep(self) -> set:
+        """三处保留集合的并集（仅用于计数/展示）。"""
+        return set(self.keep) | set(self.keep_dicom) | set(self.keep_xml)
 
     @staticmethod
     def _lc(names) -> set:
@@ -34,6 +49,8 @@ class Policy:
             "extra_remove_dicom": sorted(self.extra_remove_dicom),
             "extra_remove_xml": sorted(self.extra_remove_xml),
             "keep": sorted(self.keep),
+            "keep_dicom": sorted(self.keep_dicom),
+            "keep_xml": sorted(self.keep_xml),
             "keep_dates": self.keep_dates,
         }
 
@@ -46,6 +63,8 @@ class Policy:
             extra_remove_dicom=set(d.get("extra_remove_dicom", [])),
             extra_remove_xml=set(d.get("extra_remove_xml", [])),
             keep=set(d.get("keep", [])),
+            keep_dicom=set(d.get("keep_dicom", [])),
+            keep_xml=set(d.get("keep_xml", [])),
             keep_dates=bool(d.get("keep_dates", True)),
         )
 

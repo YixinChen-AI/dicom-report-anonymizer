@@ -66,7 +66,7 @@ class ResultPage(QWidget):
             f"{report.n_dicom_failed}；XML {report.n_xml}、失败 {report.n_xml_failed}；"
             f"丢弃 PDF {report.n_pdf_dropped}、图片 {report.n_image_dropped}；"
             f"疑似烧录 {len(report.burned_in)}。<br>"
-            f"<b>策略：</b>默认规则 + 你额外去除 {n_rm} 个标签、强制保留 {len(policy.keep)} 个。<br>"
+            f"<b>策略：</b>默认规则 + 你额外去除 {n_rm} 个标签、强制保留 {len(policy.all_keep())} 个。<br>"
             f"可分享数据在输出目录；对照表/报告在「{PRIVATE_SUBDIR}」（含真实信息，勿分享）。")
 
         if not report.leaks:
